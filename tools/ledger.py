@@ -55,6 +55,9 @@ def save(path: Path, lines, head, end, rows):
 
 
 def main() -> None:
+    # ledger text is UTF-8 (emoji, Cyrillic); a cp1251/cp866 console or pipe must not crash the print
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("add", "set"):

@@ -21,8 +21,10 @@
   the same task (re-issue, fallback to another tool) is refused until the lock is released.
 
   Developer: an existing worktree must be on the task's Branch, otherwise the launch stops.
-  Tester: always runs before merge, in the worktree of the task named in "Checks: T-xxx"; no worktree = stop.
-  Each new attempt starts with a clean log.
+  Tester, pre-merge (no "Environment:"): runs in the worktree of the task named in "Checks: T-xxx"; no worktree = stop.
+  Tester, live / post-deploy ("Environment: staging" or "prod"): runs in the main folder, no worktree.
+  The worker gets the absolute path of its Task File in the main folder: "## Result" is written there.
+  Each new attempt starts with a clean log. The window closes when the worker ends.
 
   The launcher reads tasks\T-NNN-*.md: Role, Branch, Worktree, and lines in "## Environment setup"
   (link/copy sources are required: missing in the main folder = stop before anything is created):
@@ -32,7 +34,11 @@
   and PORT=NNNN in "## Port". The worker runs in a visible window: this script again with -Worker.
 
   Tool command lines in $Tools are defaults: verify them once against your installed versions.
+  Machine settings go to environment variables, not into $Tools:
+    AGENTFLOW_CODEX       codex executable; wildcards allowed, the newest match wins
+    AGENTFLOW_CODEX_ARGS  extra codex exec arguments, space-separated (for example: -m <model>)
   Developer gets a full-access mode, tester does not (protocol: Launching workers, rule 4).
+  Tester may write only its own "## Result" and evidence; it gets network for live checks.
   Deployer is never started here: it runs only in the session the human designated.
 #>
 param(
@@ -48,15 +54,25 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $rtDir = Join-Path $root 'tasks\.runtime'
 New-Item -ItemType Directory -Force $rtDir | Out-Null
 
+$codexExe = 'codex'
+if ($env:AGENTFLOW_CODEX) {   # machine override; wildcards allowed, newest match wins
+  $m = Get-Item $env:AGENTFLOW_CODEX -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+  $codexExe = if ($m) { $m.FullName } else { $env:AGENTFLOW_CODEX }
+}
+$codexArgs = @(if ($env:AGENTFLOW_CODEX_ARGS) { $env:AGENTFLOW_CODEX_ARGS.Trim() -split '\s+' })
+
 # Defaults, verify once. pipe = output goes through Tee into the log (non-interactive mode).
 # Interactive tools (pipe = $false) keep the window until a human exits them; the log is a transcript.
+# Tester: no full access, but it must write its "## Result" in the main folder's tasks\ (codex: --add-dir; claude: Edit).
 $Tools = @{
-  codex  = @{ exe = 'codex'; pipe = $true
-              args = { param($p, $r) $s = if ($r -eq 'developer') { 'danger-full-access' } else { 'read-only' }; @('exec', '--sandbox', $s, $p) } }
+  codex  = @{ exe = $codexExe; pipe = $true
+              args = { param($p, $r)
+                if ($r -eq 'developer') { @('exec') + $codexArgs + @('--sandbox', 'danger-full-access', $p) }
+                else { @('exec') + $codexArgs + @('--sandbox', 'workspace-write', '--add-dir', (Join-Path $root 'tasks'), '-c', 'sandbox_workspace_write.network_access=true', $p) } } }
   claude = @{ exe = 'claude'; pipe = $true   # -p prints the answer only at the end
-              args = { param($p, $r) if ($r -eq 'developer') { @('-p', $p, '--dangerously-skip-permissions') } else { @('-p', $p, '--allowedTools', 'Read,Grep,Glob,Bash') } } }
+              args = { param($p, $r) if ($r -eq 'developer') { @('-p', $p, '--dangerously-skip-permissions') } else { @('-p', $p, '--allowedTools', 'Read,Grep,Glob,Bash,Edit') } } }
   agy    = @{ exe = 'agy'; pipe = $false       # -i only: -p prints nothing until the end
-              args = { param($p, $r) @('-i', $p) } }
+              args = { param($p, $r) if ($r -eq 'developer') { @('-i', $p, '--dangerously-skip-permissions') } else { @('-i', $p) } } }
 }
 
 function Now { [DateTime]::UtcNow.ToString('s') + 'Z' }
@@ -85,10 +101,14 @@ function Get-Task([string]$id, [switch]$Prepare) {
 
   $t = @{ file = $f.FullName; rel = "tasks/$($f.Name)"; role = & $field 'Role'
           branch = & $field 'Branch'; worktree = & $field 'Worktree'; env = @{} }
-  $t.prompt = "Your role: roles/$($t.role).md. Your task: $($t.rel). Follow docs/ai-handoff-protocol.md, section 'Starting a role session'."
+  # absolute path: the worker runs in a worktree, but its Task File (and "## Result") lives in the main folder
+  $t.prompt = "Your role: roles/$($t.role).md. Your task: $($t.file). Follow docs/ai-handoff-protocol.md, section 'Starting a role session'."
 
-  if ($t.role -eq 'tester') {
-    # tester always runs pre-merge, in the worktree of the task it checks (field "Checks: T-xxx, commit <SHA>")
+  # live / post-deploy tester: checks a deployed environment from the main folder, needs no worktree
+  $live = $t.role -eq 'tester' -and ((& $field 'Environment') -match '^(staging|prod)$')
+  if ($live) { $t.worktree = $null }
+  if ($t.role -eq 'tester' -and -not $live) {
+    # pre-merge tester runs in the worktree of the task it checks (field "Checks: T-xxx, commit <SHA>")
     $checks = & $field 'Checks'
     if ($checks -notmatch '(T-\d+)') { throw 'tester task needs "Checks: T-xxx, commit <SHA>"' }
     $target = Get-ChildItem (Join-Path $root 'tasks') -Filter "$($Matches[1])-*.md" | Select-Object -First 1
@@ -170,14 +190,17 @@ if ($MarkFinished) {
 
 # --- -Worker: runs inside the visible window
 if ($Worker) {
+  [Console]::OutputEncoding = [Console]::InputEncoding = $OutputEncoding = [Text.UTF8Encoding]::new($false)   # tool output is UTF-8
   $ErrorActionPreference = 'Continue'   # native stderr must not abort the worker
-  $t = Get-Task $TaskId
-  Set-Location -LiteralPath $t.workdir
-  foreach ($k in $t.env.Keys) { Set-Item "env:$k" $t.env[$k] }
-  $spec = $Tools[$Tool]; $a = & $spec.args $t.prompt $t.role
+  $spec = $Tools[$Tool]
   $log = Join-Path $rtDir "$TaskId.log"
   $code = 1; $note = $null
   try {
+    # inside try: the window closes on exit, so a setup error must end up in the state file
+    $t = Get-Task $TaskId
+    Set-Location -LiteralPath $t.workdir -ErrorAction Stop
+    foreach ($k in $t.env.Keys) { Set-Item "env:$k" $t.env[$k] }
+    $a = & $spec.args $t.prompt $t.role
     if ($spec.pipe) {
       & $spec.exe @a 2>&1 | Tee-Object -FilePath $log -Append
     } else {
@@ -197,8 +220,8 @@ if ($Worker) {
   $rt.limitHit = (Test-Path $log) -and [bool](Select-String -Path $log -Pattern 'usage limit|rate limit|quota' -Quiet)
   if ($note) { $rt.note = $note }
   Write-Rt $TaskId $rt
-  Write-Host "`n$TaskId process $($rt.status) (exit $code). You can close this window."
-  return
+  Write-Host "`n$TaskId process $($rt.status) (exit $code)."
+  return   # no -NoExit: the window closes here
 }
 
 # --- launch
@@ -230,11 +253,12 @@ try {
   Write-Rt $TaskId $rt   # running state = lock for the worker's lifetime
 
   $ps = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
-  $p = Start-Process $ps -PassThru -ArgumentList '-NoExit', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+  $p = Start-Process $ps -PassThru -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass',
     '-File', "`"$PSCommandPath`"", $TaskId, $Tool, '-Worker'
   $cur = Read-Rt $TaskId
-  if ($cur.status -eq 'running') {   # worker may already have finished (e.g. tool not found)
-    $cur.pid = $p.Id; $cur.pidStart = [long](Get-Process -Id $p.Id).StartTime.ToUniversalTime().Ticks
+  $wp = Get-Process -Id $p.Id -ErrorAction SilentlyContinue   # window closes on exit: may be gone already
+  if ($cur.status -eq 'running' -and $wp) {   # worker may already have finished (e.g. tool not found)
+    $cur.pid = $p.Id; $cur.pidStart = [long]$wp.StartTime.ToUniversalTime().Ticks
     Write-Rt $TaskId $cur
   }
 } finally {
