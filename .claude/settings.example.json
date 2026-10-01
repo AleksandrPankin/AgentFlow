@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "LS"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/*secret*)",
+      "Read(**/*token*)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)"
+    ]
+  },
+  "notes": [
+    "Example only. Review against your Claude Code version before use.",
+    "Do not store real tokens, keys, or passwords in this file.",
+    "Copy to .claude/settings.json (or settings.local.json) to activate."
+  ]
+}
