@@ -54,8 +54,11 @@ Get-Content "$T\.gitignore" | Add-Content .gitignore
 Внедри память в этот проект. Прочитай docs/ai-handoff-protocol.md, изучи файлы проекта
 и заполни под него docs/project-plan.md, state/handoff.md, state/current-step.md.
 Замени PROJECT_NAME на имя проекта. Если есть CLAUDE.old.md или AGENTS.old.md —
-перенеси правила проекта в docs/engineering-rules.md и удали старые файлы.
-Запиши в docs/engineering-rules.md папку для worktree: <папка вне проекта и вне OneDrive>.
+перенеси правила проекта под заголовок "## Project rules" в AGENTS.md и удали старые файлы.
+Там же запиши папку для worktree: <папка вне проекта и вне OneDrive>.
+Там же добавь секцию "## Preflight" (протокол, Launching workers, п. 9): deny-правила
+на адреса прода и require-правила на обязательные флаги тестовых команд.
+Если тестовый конфиг по умолчанию может уйти на staging или прод — скажи мне, не правь.
 Код не меняй. В конце сделай один commit.
 ```
 
@@ -71,12 +74,16 @@ Get-Content "$T\.gitignore" | Add-Content .gitignore
 Обнови AI Project Memory этого проекта до версии из шаблона
 <AgentFlow> (README.md и runbook/ шаблона не копируй).
 1. Скопируй то, чего в проекте нет или что в шаблоне новее: roles/, tools/, tasks/_template.md,
-   state/tasks.md (только если его нет), AGENTS.md, .claude/commands/start-role.md.
+   state/tasks.md (только если его нет), AGENTS.md (по п. 3), .claude/commands/start-role.md.
    Строки из .gitignore шаблона добавь в .gitignore проекта.
 2. docs/ai-handoff-protocol.md: возьми версию шаблона и перенеси в неё правила,
    которые дописывались в проекте. Список перенесённого покажи мне до записи.
-3. CLAUDE.md: если это только указатель на протокол — замени шаблонным.
-   Если там правила проекта — перенеси их в docs/engineering-rules.md.
+3. AGENTS.md: замени шаблоном только часть выше "## Project rules". Правила проекта
+   остаются в AGENTS.md под этим заголовком (нет заголовка — поставь его над ними),
+   docs/engineering-rules.md — тоже законное место. Переносить их между файлами не предлагай.
+   CLAUDE.md: если это только указатель на протокол — замени шаблонным.
+   Если там правила проекта — перенеси их под "## Project rules" в AGENTS.md.
+   Нет секции "## Preflight" в Project rules — предложи её (адреса прода, флаги тестов).
 4. НЕ перезаписывай: state/handoff.md, current-step, decisions, known-issues, session-log,
    state/tasks.md (если есть), docs/project-plan.md, runbook/. В decisions.md только добавь запись о переходе.
 5. Правила запуска инструментов, которые лежат только в личной памяти Claude, перенеси в roles/tool-routing.md.

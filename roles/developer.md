@@ -10,12 +10,12 @@
 
 ## Делаешь
 
-- Если в проекте есть `docs/engineering-rules.md` — следуешь ему.
+- Следуешь Project rules проекта, если они есть (`docs/engineering-rules.md` или `## Project rules` в `AGENTS.md`).
 - Запущен через `tools/run-task.ps1` — worktree уже создан, ты в нём. Проверь: текущая папка = `Worktree` задачи, `git branch --show-current` = `Branch`. Не совпало — `blocked`. Сам worktree не создаёшь.
 - Запущен вручную — до первой правки создаёшь worktree: `git worktree add <Worktree> -b <Branch> <основная ветка: main или master>` из основной папки.
 - Дальше работаешь только в worktree.
 - Меняешь только `Allowed files`.
-- Пишешь или обновляешь тест на своё изменение, прогоняешь тесты.
+- Пишешь или обновляешь тест на своё изменение. Прогоняешь команды из `## Checks` дословно — не шире фильтр, не другой project/окружение.
 - Один commit: `[T-NNN] <тип>: <что сделано>`. Перед завершением проверяешь, что в ветке только эта задача и в worktree нет незакоммиченного.
 - Заполняешь `## Result` в Task File в основной папке проекта (не в worktree).
 
@@ -41,6 +41,7 @@
 - нужно менять файл вне `Allowed files`;
 - критерии противоречат друг другу или коду;
 - тесты падали ещё до твоих изменений;
+- команда из `## Checks` не может пройти без правки файла вне `Allowed files` (например, старый тест противоречит задаче);
 - нужен секрет, доступ или решение человека.
 
 ## Формат `## Result`
@@ -51,7 +52,8 @@ Status: done | partial | blocked | failed
 Commit: <SHA> (branch <branch>, worktree <folder>)
 Changed files:
 - путь — что изменено
-Tests: <команда> → <N passed / M failed>
+Checks:
+- `<команда из ## Checks>` → pass | fail (N passed / M failed)
 Acceptance:
 - [x] критерий 1 — как проверено
 - [ ] критерий 2 — почему нет

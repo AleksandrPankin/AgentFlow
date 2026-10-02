@@ -33,6 +33,8 @@ Team:
 - Task Ledger - [state/tasks.md](../state/tasks.md): one row per task with its status. Part of Canonical Memory.
 - Stage - one roadmap step in `docs/project-plan.md`. Each task belongs to one Stage.
 - Tool Routing - [roles/tool-routing.md](../roles/tool-routing.md): which tool (Claude Code, Codex CLI, Antigravity) gets which task. Read by the Orchestrator only.
+- Project rules - the project's own code and run rules: `docs/engineering-rules.md`, or the part of `AGENTS.md` under the heading `## Project rules`. Either place is valid; a template update never overwrites them. They name the `<worktrees>` folder and may hold a `## Preflight` section ([Launching workers](#section-launching-workers), rule 9).
+- Checks - the `## Checks` section of a Task File: the exact commands that prove the Acceptance criteria. Workers run them verbatim; acceptance runs the same commands.
 
 ## What goes where
 
@@ -111,7 +113,7 @@ Rules:
 
 Who: Developer (branches, commits) and Orchestrator (merge, cleanup). Tester and Deployer do not change git state.
 
-1. One task = one branch + one worktree, both named in the Task File: branch `t-NNN-slug`, folder `<worktrees>\<repo>-t-NNN-slug`. `<worktrees>` is one folder outside the repository and outside OneDrive or other cloud sync (for example `D:\tmp`), named once in `docs/engineering-rules.md`; not named = ask the human before the first developer task. If a task touches several repositories, use the same branch name in each.
+1. One task = one branch + one worktree, both named in the Task File: branch `t-NNN-slug`, folder `<worktrees>\<repo>-t-NNN-slug`. `<worktrees>` is one folder outside the repository and outside OneDrive or other cloud sync (for example `D:\tmp`), named once in the Project rules; not named = ask the human before the first developer task. If a task touches several repositories, use the same branch name in each.
 2. The main folder of the repository stays on the main branch (`main` or `master`). Only the Orchestrator works there: memory, `tasks/`, merges. Developers never change files in the main folder, except their own Task File's `## Result`.
 3. Developer start. Launched by `tools/run-task.ps1`: the worktree already exists and the session starts inside it; check that the current folder is the task's `Worktree` and `git branch --show-current` is the task's `Branch`, then work. Started by hand: create it yourself from the main folder, `git worktree add <folder> -b <branch> <main-branch>`, then `git status` inside it. In both cases: a folder or branch that exists but is not this task's = `blocked`.
 4. Do not mix tasks in one branch. Do not carry changes between tasks through stash or a shared intermediate branch.
@@ -194,7 +196,7 @@ Rules:
 The Orchestrator accepts on evidence, not on the worker's word:
 
 1. `git diff --name-only <main>...<branch>` is inside `Allowed files`. Anything outside = `rework`, not a quiet merge.
-2. Run the cheap checks yourself or via a script (tests named in Acceptance criteria) on the branch before merge, not only after it.
+2. Run the task's `## Checks` commands, exactly as written, on the branch before merge, not only after it. Nothing beyond them: a new experiment, measurement, or manual investigation is a Tester task, not acceptance.
 3. A change visible to a user, or risky (data, auth, deploy scripts, shared config), needs an independent review before merge: a Tester task (UI: in a browser), or a read-only review by a cheap tool. The Orchestrator may skip it only by writing the reason in `state/decisions.md`.
 4. A stage rule from the plan (for example "prototype first") is checked at acceptance too: no prototype, no `done`.
 
@@ -226,6 +228,12 @@ Who: Orchestrator (or the human). Details per tool: [roles/tool-routing.md](../r
 6. Parallel tasks must not share a network port. Each task gets its own `PORT` in the Task File (section "Port"); tests read it from the environment.
 7. At session start the human states the remaining limit per tool; the Orchestrator keeps it in the conversation, not in memory files, and picks fallbacks from it before launching.
 8. **Maximize safe parallelism.** Launch every ready task that can safely run now; do not keep an independent ready task waiting while a suitable tool is free. A task is ready when its ledger status is `ready` and every `Depends on` task is `done`. Two ready tasks can run together when they share no file in `Allowed files`, no `Port`, and no `Rebuild together` target. Parallelism = min(independent ready tasks, free tool capacity by the stated limits, environment capacity: ports, machine). No fixed number of agents. When a task finishes, refill the free slot at once.
+9. **Preflight.** `run-task.ps1` checks the Task File before it creates anything and refuses the launch with the full list of problems: a `Depends on` task not `done` in the ledger (a pre-merge Tester's checked task needs a filled Result instead); `Allowed files` or `Rebuild together` shared with a task that is `in progress` / `review` or has a worker process; `Port` shared with a running worker; `Allowed files` overlapping `Do not touch`; `Acceptance criteria` or `## Checks` empty or still the template text; a developer `Branch` not starting with `t-NNN-`; `env: AGENTFLOW_*` lines. Project patterns come from a `## Preflight` section in the Project rules and apply to `## Checks` commands and `## Environment setup` lines of local tasks:
+   - `- deny: <regex>` - no command may match (production hosts, destructive commands);
+   - `- require: <regex> => <regex>` - a command matching the first must also match the second (for example `playwright test => --project=local`).
+
+   A refused launch is fixed in the Task File, not worked around.
+10. **Production is opt-in.** Every worker gets `AGENTFLOW_TARGET`: `local` for Developers and pre-merge Testers, the task's `Environment` (`staging` / `prod`) for a live Tester. A Task File cannot override it. Project test and run configs must default to local: unset or `local` never reaches staging or production. A config that can reach production by default is a defect: the Orchestrator issues a developer task to fix it before other work that runs those tests.
 
 ## Section: Updating memory
 
@@ -259,7 +267,7 @@ Update `state/handoff.md` only, as a short transfer note for the next AI session
 - Next Exact Step
 - Files To Read First
 
-Keep it short: usually 1-2 screens (about 4 KB). `state/current-step.md` the same. History does not stay there: when a file passes the limit, move finished items to `state/session-log.md` in the same update. Rules that must survive a new session or another tool belong in project files (`state/decisions.md`, `roles/tool-routing.md`, `docs/engineering-rules.md`), never only in one tool's private memory. Link to detailed files instead of duplicating long logs. Open tasks are listed in `state/tasks.md`, not here. Separate verified facts from assumptions.
+Keep it short: usually 1-2 screens (about 4 KB). `state/current-step.md` the same. History does not stay there: when a file passes the limit, move finished items to `state/session-log.md` in the same update. Rules that must survive a new session or another tool belong in project files (`state/decisions.md`, `roles/tool-routing.md`, Project rules), never only in one tool's private memory. Link to detailed files instead of duplicating long logs. Open tasks are listed in `state/tasks.md`, not here. Separate verified facts from assumptions.
 
 ## Section: Updating the runbook
 

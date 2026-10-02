@@ -9,7 +9,7 @@ Tool: Claude Code | Codex CLI | Antigravity | Antigravity CLI  <!-- ../roles/too
 Stage: <номер Stage из docs/project-plan.md>
 Depends on: T-xxx | нет
 Branch: t-NNN-slug                     <!-- developer; Git rules в протоколе -->
-Worktree: <worktrees>\<repo>-t-NNN-slug  <!-- developer; <worktrees> из docs/engineering-rules.md -->
+Worktree: <worktrees>\<repo>-t-NNN-slug  <!-- developer; <worktrees> из Project rules (протокол, Terms) -->
 Resume: нет                            <!-- после сбоя: commit SHA | start fresh; см. Recovery в протоколе -->
 Checks: T-xxx, commit <SHA>            <!-- tester, deployer; tester without Environment runs in T-xxx's worktree, before merge -->
 Environment: staging | prod            <!-- deployer; tester: live check after deploy, from the main folder, no worktree. Pre-merge tester: delete the line -->
@@ -24,6 +24,8 @@ Prod approved by human: да (дата) | нет  <!-- deployer -->
 - файлы, которые нужно прочитать
 
 ## Allowed files
+
+<!-- Тесты, которые проверяют меняемое поведение, — тоже сюда: старый тест, противоречащий новой задаче, в Do not touch = гарантированный blocked. Пересечение с Do not touch и с незавершёнными задачами run-task.ps1 не пропустит. -->
 
 - что можно менять (tester, deployer: «ничего»)
 
@@ -51,6 +53,15 @@ Prod approved by human: да (дата) | нет  <!-- deployer -->
 
 - [ ] проверяемый критерий 1
 - [ ] проверяемый критерий 2
+
+## Checks
+
+<!-- Точные команды, которые доказывают критерии. Исполнитель запускает их дословно, приёмка — те же команды.
+     Узко: конкретный spec-файл или фильтр, а не весь набор. Только локальное окружение (AGENTFLOW_TARGET=local).
+     Проверки без команды (скриншот, ручной шаг) — отдельной строкой без обратных кавычек.
+     Проектные запреты и обязательные флаги — секция "## Preflight" в Project rules; run-task.ps1 проверяет их до запуска. -->
+
+- `<команда>` — какой критерий доказывает
 
 ## Result
 

@@ -8,4 +8,6 @@ If you were given a role (`roles/<role>.md`, or `/start-role <role> ...`): run p
 
 Without a role (Single Mode): before substantial work run protocol section "Starting a new AI session"; before ending a long session run "Updating memory", and "Updating the runbook" if a verified human-facing step changed.
 
-Project-specific code rules, if any, live in `docs/engineering-rules.md`.
+## Project rules
+
+Project-specific code and run rules go below this heading or in `docs/engineering-rules.md` (protocol, Terms: Project rules). A template update replaces only the part of this file above this heading.
