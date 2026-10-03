@@ -33,7 +33,7 @@ Team:
 - Task Ledger - [state/tasks.md](../state/tasks.md): one row per task with its status. Part of Canonical Memory.
 - Stage - one roadmap step in `docs/project-plan.md`. Each task belongs to one Stage.
 - Tool Routing - [roles/tool-routing.md](../roles/tool-routing.md): which tool gets which task. Read by the Orchestrator only.
-- Project rules - the project's own code and run rules: `docs/engineering-rules.md`, or the part of `AGENTS.md` under the heading `## Project rules`. Either place is valid; a template update never overwrites them. They name the `<worktrees>` folder and may hold a `## Preflight` section ([Launching workers](#section-launching-workers), rule 9).
+- Project rules - the project's own code and run rules: `docs/engineering-rules.md`, or the part of `AGENTS.md` under the heading `## Project rules`. Either place is valid; a template update never overwrites them. They name the `<worktrees>` folder and may hold `## Preflight` ([Launching workers](#section-launching-workers), rule 9) and `## Tool routing` notes.
 - Checks - the `## Checks` section of a Task File: the exact commands that prove the Acceptance criteria. Workers run them verbatim; acceptance runs the same commands.
 - Review isolation - a Tester cannot change the Developer artifact it checks. It works in a disposable checkout of the checked commit (`Verifies: T-xxx @ <SHA>`); at the end of the attempt the launcher verifies that the checked branch, worktree, and Task File did not change.
 
@@ -49,7 +49,7 @@ Team:
 - `docs/project-plan.md` - living roadmap: stages, status, what comes next.
 - `runbook/clean-instruction.md` or a project-specific file in `runbook/` - only verified steps that led to the result.
 - `screenshots/` - screenshots that can be linked from the runbook.
-- `roles/` - role files and tool routing. Same in every project; change only to fix the role itself.
+- `roles/` - role files and tool routing. Template-owned ([Installing or updating AgentFlow](#section-installing-or-updating-agentflow)): change only to fix the role itself.
 - `tasks/` - Task Files and `_template.md`.
 
 ### Planning levels
@@ -309,3 +309,32 @@ Who: Single Mode session or Orchestrator. A worker session ends when its Result 
 1. Updating the runbook (skip if no verified user-facing instruction changed)
 2. Updating memory
 3. Handoff
+
+## Section: Installing or updating AgentFlow
+
+Who: a Single Mode session, on the human's request. The version is the line `AgentFlow version:` in `AGENTS.md`.
+
+Ownership:
+
+- Template-owned, replaced on update: the part of `AGENTS.md` above `## Project rules`, `CLAUDE.md`, `.claude/commands/`, `docs/ai-handoff-protocol.md`, `roles/`, `tasks/_template.md`, `tools/`.
+- Project-owned, never overwritten: everything else, including `state/`, `docs/project-plan.md`, `runbook/`, `screenshots/`, Task Files, `## Project rules`, `docs/engineering-rules.md`.
+- Template-only, never copied: `README.md`, `GUIDE.md`, `CHANGELOG.md`, `LICENSE`, and the template's own `state/` and `docs/project-plan.md`.
+
+A project-specific rule never goes into a template-owned file: it goes to Project rules (tool notes under `## Tool routing`).
+
+Install into a project:
+
+1. The project needs git with a main branch and at least one commit.
+2. Copy the template-owned files; append the template's `.gitignore` lines to the project's.
+3. Rules from the project's own earlier `CLAUDE.md` or `AGENTS.md` move under `## Project rules`.
+4. Create the memory from the real project state ([What goes where](#what-goes-where)): `docs/project-plan.md` with stages and Exit criteria, `state/handoff.md`, `state/current-step.md`, `state/decisions.md`, `state/known-issues.md`, `state/session-log.md`. `python tools/ledger.py show` creates the ledger.
+5. Project rules: the `<worktrees>` folder (outside the repository and cloud sync) and a `## Preflight` section (deny production hosts, require the local flags of test commands). A test config that can reach staging or production by default: tell the human, do not fix it here.
+6. No product code changes. One commit.
+
+Update a project:
+
+1. Compare the project's `AgentFlow version` with the template's and read the template's `CHANGELOG.md` entries in between, with their migration notes.
+2. List the rules the project added inside template-owned files and show the list to the human; after agreement move them to Project rules, then replace the template-owned files.
+3. Apply the migration notes to open Task Files and the ledger.
+4. Do not touch project-owned files except for the migration notes; add a dated entry to `state/decisions.md`.
+5. One commit.

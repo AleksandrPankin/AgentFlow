@@ -1,34 +1,29 @@
 # Project Plan
 
-Project: PROJECT_NAME
+Project: AgentFlow template.
 
 ## Goal
 
-Describe the project goal.
+A small, tool-agnostic template that lets one Orchestrator and fresh worker sessions run a software project without losing state, with rules enforced by the tools.
 
-This file is the living roadmap: stages, status, what comes next. Tasks are not listed here: they live in `state/tasks.md` with a `Stage` column. See `docs/ai-handoff-protocol.md`, "Planning levels".
+Tasks are not listed here: they live in `state/tasks.md` with a `Stage` column. See `docs/ai-handoff-protocol.md`, "Planning levels".
 
 ## Roadmap
 
-### Stage 0. Project memory setup
+### Stage 1. Team layer and launcher
 
 Status: closed.
 
-Exit criteria: AI Project Memory, clean runbook, screenshots folder, and living project plan are available.
+Exit criteria: roles, Task Files, ledger, launcher with preflight work on a live project (1.2.0).
 
-### Stage 1. Current active work
+### Stage 2. 2.0.0: enforcement, states, template vs project
 
 Status: current.
 
-Exit criteria: what must be true, checked by `python tools/gate.py stage 1`.
+Exit criteria: P0-P4 of the FPF audit committed; sandbox checks pass; the branch is merged by the human.
 
-Describe the active project stage here after inspecting the real project state.
-
-### Stage 2. Next planned work
+### Stage 3. Pilot 2.0.0
 
 Status: planned.
 
-Describe the next project stage after the current active work is clear.
-
-Update this file when the roadmap changes.
-
+Exit criteria: one real project updated with the "Update" procedure and a full task cycle run with the real tools; findings in `state/known-issues.md`.

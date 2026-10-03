@@ -1,18 +1,14 @@
 # Инструкция: как пользоваться AgentFlow
 
-Шаблон памяти проекта с командой агентов: оркестратор, разработчик, тестировщик, деплоер. Как это устроено внутри — [README](../README.md) и [протокол](../docs/ai-handoff-protocol.md). Здесь только «что нажать и что ввести».
+Шаблон памяти проекта с командой агентов: оркестратор, разработчик, тестировщик, деплоер. Как это устроено внутри — [README](README.md) и [протокол](docs/ai-handoff-protocol.md). Здесь только «что нажать и что ввести».
 
-Шаблон — папка, куда склонирован этот репозиторий. Ниже она обозначена `<AgentFlow>`: подставь свой путь.
+Шаблон — папка, куда склонирован этот репозиторий. Ниже она обозначена `<AgentFlow>`: подставь свой путь. Какие файлы шаблона попадают в проект, а какие нет, — в протоколе, раздел «Installing or updating AgentFlow».
 
-Этот файл и `README.md` в проект не копируются: это инструкция к самому шаблону.
-
-Нужно на машине: git, Python 3, PowerShell, и те CLI, которыми будут работать исполнители (`codex`, `claude`, `agy`).
+Нужно на машине: git, Python 3, PowerShell 7, и те CLI, которыми будут работать исполнители (`codex`, `claude`, `agy`).
 
 ---
 
 # Часть 1. Установка
-
-Выбери свой случай:
 
 | Что в папке проекта | Вариант |
 |---|---|
@@ -23,77 +19,44 @@
 
 ### Шаг 1. Git
 
-Агентам нужен git с основной веткой и хотя бы одним коммитом: разработчики работают в отдельных папках-worktree, которые создаются от основной ветки.
+Агентам нужен git с основной веткой и хотя бы одним коммитом: разработчики работают в отдельных папках-worktree от основной ветки.
 
 Пустая папка:
 
 ```powershell
 cd D:\путь\к\проекту
 git init -b main
+git commit --allow-empty -m "init"
 ```
 
-Форк: git уже есть. Проверь имя основной ветки командой `git branch --show-current`: это `main` или `master`.
+Форк: git уже есть. Основная ветка — `git branch --show-current` (`main` или `master`).
 
-Если в проекте уже есть свои `CLAUDE.md` или `AGENTS.md`, переименуй их в `CLAUDE.old.md` / `AGENTS.old.md`. На шаге 3 Claude перенесёт из них нужное.
+### Шаг 2. Установить шаблон
 
-### Шаг 2. Скопировать шаблон
-
-```powershell
-$T = "<AgentFlow>"
-Copy-Item -Path "$T\.claude", "$T\docs", "$T\roles", "$T\state", "$T\tasks", "$T\tools", "$T\AGENTS.md", "$T\CLAUDE.md" -Destination . -Recurse
-Get-Content "$T\.gitignore" | Add-Content .gitignore
-```
-
-Ожидаемый результат: в проекте появились `AGENTS.md`, `CLAUDE.md`, `.claude\`, `docs\`, `roles\`, `state\`, `tasks\`, `tools\`; в `.gitignore` есть строка `tasks/.runtime/`. Проверка: `python tools/ledger.py show` выполняется без ошибки.
-
-### Шаг 3. Заполнить память под проект
-
-Открой папку проекта в VS Code, запусти Claude Code и введи:
+Открой папку проекта в VS Code, запусти Claude Code и введи (подставь путь и папку для worktree — вне проекта и вне OneDrive):
 
 ```text
-Внедри память в этот проект. Прочитай docs/ai-handoff-protocol.md, изучи файлы проекта
-и заполни под него docs/project-plan.md, state/handoff.md, state/current-step.md.
-Замени PROJECT_NAME на имя проекта. Если есть CLAUDE.old.md или AGENTS.old.md —
-перенеси правила проекта под заголовок "## Project rules" в AGENTS.md и удали старые файлы.
-Там же запиши папку для worktree: <папка вне проекта и вне OneDrive>.
-Там же добавь секцию "## Preflight" (протокол, Launching workers, п. 9): deny-правила
-на адреса прода и require-правила на обязательные флаги тестовых команд.
-Если тестовый конфиг по умолчанию может уйти на staging или прод — скажи мне, не правь.
-Код не меняй. В конце сделай один commit.
+Install AgentFlow from <AgentFlow> into this project:
+<AgentFlow>\docs\ai-handoff-protocol.md, section "Installing or updating AgentFlow", "Install".
+Worktrees folder: <D:\tmp>.
 ```
 
-Ожидаемый результат: в `docs/project-plan.md` реальные этапы проекта, в `state/handoff.md` реальное состояние, `PROJECT_NAME` нигде не осталось, есть commit.
+Ожидаемый результат: в проекте есть `AGENTS.md` (со строкой `AgentFlow version`), `roles/`, `tools/`, `state/`, `docs/project-plan.md` с реальными этапами проекта; `python tools/ledger.py show` работает; один commit. Если Claude сказал, что тестовый конфиг может уйти на staging или прод, — это задача на исправление до начала работы.
 
 ## Б. Проект с памятью
 
-Память уже есть: обычная, для работы в одной сессии, или командная прошлой версии. Её нужно обновить, ничего не потеряв. Вручную это делать долго и рискованно: протокол проекта мог дописываться. Поэтому переход делает Claude.
-
-Открой проект в VS Code, запусти Claude Code и введи:
+Память уже есть: обычная или командная прошлой версии. Её нужно обновить, ничего не потеряв.
 
 ```text
-Обнови AI Project Memory этого проекта до версии из шаблона
-<AgentFlow> (README.md и runbook/ шаблона не копируй).
-1. Скопируй то, чего в проекте нет или что в шаблоне новее: roles/, tools/, tasks/_template.md,
-   state/tasks.md (только если его нет), AGENTS.md (по п. 3), .claude/commands/start-role.md.
-   Строки из .gitignore шаблона добавь в .gitignore проекта.
-2. docs/ai-handoff-protocol.md: возьми версию шаблона и перенеси в неё правила,
-   которые дописывались в проекте. Список перенесённого покажи мне до записи.
-3. AGENTS.md: замени шаблоном только часть выше "## Project rules". Правила проекта
-   остаются в AGENTS.md под этим заголовком (нет заголовка — поставь его над ними),
-   docs/engineering-rules.md — тоже законное место. Переносить их между файлами не предлагай.
-   CLAUDE.md: если это только указатель на протокол — замени шаблонным.
-   Если там правила проекта — перенеси их под "## Project rules" в AGENTS.md.
-   Нет секции "## Preflight" в Project rules — предложи её (адреса прода, флаги тестов).
-4. НЕ перезаписывай: state/handoff.md, current-step, decisions, known-issues, session-log,
-   state/tasks.md (если есть), docs/project-plan.md, runbook/. В decisions.md только добавь запись о переходе.
-5. Правила запуска инструментов, которые лежат только в личной памяти Claude, перенеси в roles/tool-routing.md.
-6. Открытые задачи из current-step или docs/work/ внеси в state/tasks.md через python tools/ledger.py.
-7. Один commit.
+Update AgentFlow in this project from <AgentFlow>:
+<AgentFlow>\docs\ai-handoff-protocol.md, section "Installing or updating AgentFlow", "Update".
 ```
 
-Если память лежит не в корне проекта, а в соседней папке, добавь первой строкой: «Память проекта сейчас лежит в `<путь>`, перенеси её в корень проекта».
+Если память лежит не в корне проекта, а в соседней папке, добавь первой строкой: `Project memory is in <путь>; move it to the project root first.`
 
-Ожидаемый результат: в проекте есть `roles/`, `tools/`, `state/tasks.md`, `AGENTS.md`. Старые handoff, decisions и known-issues на месте. Команда `/start-role` появилась в списке команд Claude Code.
+Claude покажет список правил проекта, которые нужно перенести в `## Project rules`. Проверь его и ответь «ок».
+
+Ожидаемый результат: версия в `AGENTS.md` совпадает с шаблоном, старые handoff, decisions и known-issues на месте, в `decisions.md` есть запись о переходе, один commit.
 
 ## В. Один раз: проверить инструменты
 

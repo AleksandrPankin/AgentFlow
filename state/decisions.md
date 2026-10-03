@@ -1,31 +1,77 @@
-﻿# Decision Log
+# Decision Log
 
-This file records decisions that affect future project work. If the approach changes later, add a new decision below instead of deleting old context without a reason.
+Decisions about the AgentFlow template itself: why, and what was rejected. What changed per version: `CHANGELOG.md`. Add new decisions below; do not delete old ones without a reason.
 
 ## 2026-05-21
 
 ### AI Project Memory
 
-Decision: add the baseline AI Project Memory structure: protocol, handoff, current-step, decisions, known-issues, and session-log.
+Decision: baseline memory files: protocol, handoff, current-step, decisions, known-issues, session-log.
 
-Reason: long AI sessions lose context, repeat old errors, and forget why decisions were made. A short handoff should be the entry point, while details live in specialized files.
+Why: long AI sessions lose context, repeat old errors, and forget why decisions were made. A short handoff is the entry point; details live in specialized files.
 
 ## 2026-10-01
 
 ### Team roles and single memory writer
 
-Decision: add four roles (orchestrator, developer, tester, deployer), Task Files in `tasks/`, and the Task Ledger `state/tasks.md`. In Team Mode only the Orchestrator writes Canonical Memory; workers write only their task Result.
+Decision: four roles, Task Files in `tasks/`, Task Ledger `state/tasks.md`. In Team Mode only the Orchestrator writes Canonical Memory; workers write only their Result.
 
-Reason: several sessions updating handoff/current-step in parallel create conflicting versions of project state. Workers need only their role and task, not the whole project history.
+Why: several sessions updating handoff and current-step in parallel create conflicting versions of project state. Workers need their role and task, not the whole history.
 
-### Git rules: one task = one branch + one worktree, mandatory cleanup
+### One task = one branch + one worktree, mandatory cleanup
 
-Decision: each developer task gets its own branch `t-NNN-slug` and worktree `<worktrees>\<repo>-t-NNN-slug` (a folder outside the repository and cloud sync); the main folder stays on the main branch and belongs to the Orchestrator; workers do not launch sub-agents; after merge the Orchestrator removes the worktree and the branch.
+Decision: each developer task gets branch `t-NNN-slug` and a worktree outside the repository and cloud sync; the main folder stays on the main branch and belongs to the Orchestrator; after merge the Orchestrator removes the worktree and the branch.
 
-Reason: a no-worktree rule (taken from a colleague's AGENTS.md) was considered, but real practice on an earlier project showed worktrees outside the repository working: 36 of 37 task branches merged into main. The actual problem was missing cleanup: 33 merged worktrees left hanging. Worktrees keep parallel work; the cleanup rule removes the mess.
+Why: on an earlier project 36 of 37 task branches with worktrees merged; the real problem was 33 merged worktrees left behind. Rejected: a no-worktree rule (loses parallel work).
 
 ### Tool routing by fit and budget
 
-Decision: the Orchestrator picks the tool per task (Claude Code, Codex CLI, Antigravity, Antigravity CLI) using `roles/tool-routing.md` and the limits the human reports; the choice is written in the Task File and ledger.
+Decision: the Orchestrator picks the tool per task from `roles/tool-routing.md` and the limits the human reports; the choice is written in the Task File and ledger.
 
-Reason: tools differ in strengths and token cost; spending the most capable tool on mechanical work wastes limits.
+Why: tools differ in strengths and token cost; spending the most capable tool on mechanical work wastes limits.
+
+## 2026-10-03
+
+Context: an audit against the First Principles Framework (FPF) found rules that the scripts did not enforce, overloaded status words, evidence that was overwritten, and template history mixed into project memory. FPF was used as a reference, not as a target: a principle was applied only where it fixed a concrete defect.
+
+### Enforcement before prose
+
+Decision: prefer code enforcement, then structured fields, then one canonical rule; no rule repeated across files.
+
+Why: every audit defect of the form "the text says X, the tool does Y" came from a rule that existed only as prose. Rejected: more prompt instructions (more tokens, same gap).
+
+### Review isolation instead of "read-only Tester"
+
+Decision: the Tester works in a disposable checkout of the checked commit; the launcher compares the checked branch, worktree, and Task File before and after the attempt. Codex (sandboxed) is the first choice; Claude is a fallback guarded only by the end check.
+
+Why: the Tester needs write access for test runs and its Result, so "read-only" could not be true; what matters is that it cannot change the artifact that is then accepted. Rejected: Tester only on Codex (no fallback when its limit ends).
+
+### Production approval stays in the Deployer session
+
+Decision: the Deployer asks the human in its own designated session and records `source=human target sha at`; the Orchestrator is not in the chain.
+
+Why: an approval relayed by the Orchestrator was a record it could write itself. Rejected: an `approve.ps1` record file (an agent with a shell can write the file as well).
+
+### Acceptance as an event, separate state families
+
+Decision: one owner and one vocabulary per family (Task state, Process state, Outcome, role result, Stage state); acceptance is the ledger transition `review -> done`, allowed by `ledger.py` only after a passing `gate.py verify`. No separate "Decision" status.
+
+Why: `done`, `failed`, `blocked` meant different things in five places. Rejected: a common `Claim` result for all roles (Developer, Tester, and Deployer produce different results).
+
+### Pure logic in Python, side effects in PowerShell
+
+Decision: `tools/gate.py` parses Task Files and runs preflight, end check, verify, and the Stage check; `tools/run-task.ps1` creates worktrees and checkouts and runs processes.
+
+Why: with verify and attempt history the launcher would have become parser, verifier, state machine, and evidence store at once; Python logic is easier to test and is shared with `ledger.py`.
+
+### Template-owned vs project-owned files
+
+Decision: ownership list and install / update procedure in the protocol; `AgentFlow version` in `AGENTS.md`; the template's own `state/` and `docs/project-plan.md` are never copied; project tool notes live in Project rules.
+
+Why: projects inherited template history as their own decisions, and updating `roles/` overwrote project edits in `tool-routing.md`.
+
+### Language
+
+Decision: machine-facing files in English; communication with the human in Russian, generated from the canonical rule, never stored as a second copy.
+
+Why: Russian text costs about twice the tokens of English, and two copies of a rule drift apart.

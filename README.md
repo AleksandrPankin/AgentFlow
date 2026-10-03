@@ -16,12 +16,13 @@ All rules live in one file, [docs/ai-handoff-protocol.md](docs/ai-handoff-protoc
 | `tasks/_template.md` | Task File template |
 | `tools/` | `run-task.ps1` launcher, `gate.py` preflight / verify / Stage check, `ledger.py` Task Ledger |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/commands/` | entry points for the tools |
-| `runbook/clean-instruction.md` | step-by-step guide (Russian): install, update, daily use |
+| `GUIDE.md` | step-by-step guide (Russian): install, update, daily use |
+| `CHANGELOG.md` | what changed in each version |
 
 Requirements: git, Python 3, PowerShell 7 on Windows, and the CLIs of the tools you use.
 
 ## Start
 
-Install and daily use: [runbook/clean-instruction.md](runbook/clean-instruction.md). In Claude Code the Orchestrator starts with `/start-role orchestrator` and your goal; a session without a role uses `/start-session`.
+Install and daily use: [GUIDE.md](GUIDE.md). In Claude Code the Orchestrator starts with `/start-role orchestrator` and your goal; a session without a role uses `/start-session`.
 
 License: MIT.

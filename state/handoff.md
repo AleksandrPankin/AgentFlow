@@ -1,47 +1,28 @@
-﻿# Session Handoff
+# Session Handoff
+
+## As of
+
+2026-10-03, branch `refactor/fpf-audit` (not merged into main).
 
 ## Goal
 
-Describe the project goal.
+Keep AgentFlow small while its rules are enforced by the tools, not only written down.
 
-## Current State
+## Verified state
 
-Describe the current state.
-
-## Files in Flight
-
-- docs/ai-handoff-protocol.md
-- state/current-step.md
-- state/decisions.md
-- state/known-issues.md
-- state/session-log.md
-- state/tasks.md
-
-## Changed Since Last Handoff
-
-- AI Project Memory baseline installed for this project.
-- Project-specific handoff and current-step files were initialized.
-
-## Failed Attempts / False Leads
-
-- No project-specific failed attempts have been recorded yet.
-- Add false leads here as soon as they appear, so future AI sessions do not repeat them.
+- 2.0.0 refactor done in five commits on `refactor/fpf-audit` (P0-P4); see `CHANGELOG.md`.
+- Launcher, gate, and ledger checked in a throwaway sandbox repository: launch gate, `-Manual`, review isolation, end check, verify, ledger transitions, Stage check (all passed). Not yet run with the real codex / claude / agy CLIs.
 
 ## Assumptions
 
-- Existing code, README files, docs, env files, outputs, and archives are preserved.
-- Secrets and local credentials stay outside Markdown.
-- This file should remain short and point to detailed files instead of duplicating them.
+- Projects run on Windows with PowerShell 7 and Python 3.
 
-## Open Problems
+## Open problems
 
-- Fill this section when the next AI session discovers blockers or unclear project state.
+- See `state/known-issues.md`.
 
-## Next Exact Step
+## Files to read first
 
-Read the files listed below, inspect the current project state, and update this handoff with the real active task before making changes.
-
-## Files To Read First
-
-1. docs/ai-handoff-protocol.md
-2. state/handoff.md
+1. `docs/ai-handoff-protocol.md`
+2. `state/current-step.md`
+3. `CHANGELOG.md`
