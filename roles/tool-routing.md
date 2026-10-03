@@ -1,78 +1,53 @@
-# Tool Routing: какой инструмент берёт какую задачу
+# Tool routing
 
-Читает только [orchestrator](orchestrator.md). Исполнителям этот файл не нужен.
+Which tool takes which task. Read by the [Orchestrator](orchestrator.md) only. The choice goes to `Tool:` in the Task File and to the ledger `Tool` column.
 
-Термин: [Tool Routing](../docs/ai-handoff-protocol.md#terms). Выбранный инструмент записывается в поле `Tool:` [Task File](../tasks/_template.md) и в колонку `Tool` [Task Ledger](../state/tasks.md).
+This file is shared by all projects and replaced on template update: notes from one project go to its Project rules, `## Tool routing`. As of 2026-10; the strengths below are defaults, not measurements: confirm them on your own tasks.
 
-Данные на 2026-10. Файл общий для всех проектов и перезаписывается при обновлении шаблона: наблюдения конкретного проекта — в Project rules, раздел `## Tool routing`.
+## How to choose
 
-## Как выбирать
+1. Fit: the tables below.
+2. Remaining limit: at session start the human says what is left per tool. Not said: ask in one line. Do not write limits to memory.
+3. Expensive tools only where a mistake is expensive: mechanical edits, renames, simple tests go to the cheapest fitting tool or a smaller model.
+4. Tester on a different tool than the Developer when possible: another model has other blind spots. Codex first: only there [review isolation](../docs/ai-handoff-protocol.md#terms) is a sandbox.
 
-1. **Подходит ли инструмент задаче** — таблица ниже.
-2. **Сколько лимита осталось.** В начале сессии оркестратора человек говорит, где сколько осталось (например: «Claude — мало до вечера, Codex — много, Antigravity — бесплатная квота»). Не сказал — спроси одной строкой. В память лимиты не записывай: они меняются каждый день.
-3. **Дорогое — только там, где ошибка дорогая.** Механическая правка, переименование, простой тест — самый дешёвый подходящий инструмент или младшая модель.
-4. **Tester ≠ developer по инструменту**, когда это возможно. Другая модель — другие слепые пятна.
+## Tools
 
-## Инструменты
-
-| Инструмент | Сильные стороны | Слабые стороны |
+| Tool | Strong | Weak |
 |---|---|---|
-| **Claude Code CLI** | Лучшее качество на сложной работе с несколькими файлами и архитектуре. Держит длинные цепочки действий. Хорошо работает с памятью проекта (CLAUDE.md, команды) | Тратит больше токенов на ту же задачу. Лимиты подписки по окнам времени |
-| **Codex CLI** | Экономнее по токенам (в независимом тесте примерно в 3 раза меньше на ту же задачу). Есть режим песочницы «только чтение» — удобно для ревью. Есть дешёвые модели для простых задач. Сам читает `AGENTS.md` | По отзывам слабее на больших многофайловых изменениях |
-| **Antigravity (IDE)** | Встроенный агент с браузером: открыть сайт, проверить разные ширины экрана, снять скриншоты. Подтверждено твоей практикой с QA | Это IDE, а не терминал. Студию и прод можно трогать только при явных запретах в задаче |
-| **Antigravity CLI** | Контекст до 1M токенов: большой код, логи, выгрузки целиком. Быстрые Flash-модели. Есть бесплатная квота | Молодой продукт. По отзывам квота кончается и начинается торможение. Мягче по умолчанию с подтверждениями — не давать доступ к проду |
+| Claude Code | complex multi-file work and architecture; long action chains; project memory (`CLAUDE.md`, commands) | more tokens per task; limits per time window |
+| Codex CLI | fewer tokens per task; sandbox modes; small models for simple tasks; reads `AGENTS.md` | large multi-file changes |
+| Antigravity (IDE) | built-in browser agent: sites, screen widths, screenshots | not automatable: `-Manual` only |
+| Antigravity CLI | context up to 1M tokens: large code, logs, dumps; fast models; free quota | young; slows down when the quota ends; soft confirmations: never production |
 
-## Маршрутизация
+## Routing
 
-| Задача | Первый выбор | Запасной |
+| Task | First choice | Fallback |
 |---|---|---|
-| Orchestrator: план, декомпозиция, приёмка | Claude Code | Codex |
-| Developer: сложная, несколько файлов, архитектура | Claude Code | Codex (старшая модель) |
-| Developer: маленькая, изолированная, критерии ясны | Codex (младшая модель) | Antigravity CLI |
-| Tester: ревью кода, прогон тестов | Codex (только чтение) | Claude Code |
-| Tester: интерфейс в браузере, ширины, скриншоты | Antigravity (IDE) | Claude Code + Playwright |
-| Разбор большого кода, логов, данных | Antigravity CLI | Claude Code |
-| Deployer | Инструмент, где уже настроены доступ к серверу и runbook, со строгими подтверждениями: Claude Code или Codex | Не Antigravity CLI для прода |
+| Orchestrator: plan, split, accept | Claude Code | Codex |
+| Developer: complex, several files, architecture | Claude Code | Codex (larger model) |
+| Developer: small, isolated, clear criteria | Codex (smaller model) | Antigravity CLI |
+| Tester: code review, test runs | Codex | Claude Code |
+| Tester: interface in a browser, widths, screenshots | Antigravity (IDE) | Claude Code + Playwright |
+| Reading large code, logs, data | Antigravity CLI | Claude Code |
+| Deployer | the tool where server access and the runbook are set up: Claude Code or Codex | never Antigravity CLI for production |
 
-## Правила запуска (из пилота, обязательны)
+## Fallback by limit
 
-Это правила проекта, а не личная память одного инструмента. Протокол: [Launching workers](../docs/ai-handoff-protocol.md#section-launching-workers).
+Used when `-Status` shows `limitHit=True`, or the attempt is `dead` / `error` without a Result, after the lock is released ([Recovery](../docs/ai-handoff-protocol.md#recovery-stale-task), rule 7).
 
-1. Запуск — только `tools/run-task.ps1 T-NNN <codex|agy|claude>`. Видимое окно с логом, состояние процесса в `tasks/.runtime/T-NNN.json`, одна задача = один живой worker. Окно закрывается само, когда worker закончил. Настройки машины — переменные окружения, не правка скрипта: `AGENTFLOW_CODEX` (путь к codex, можно с `*`, берётся самый новый файл), `AGENTFLOW_CODEX_ARGS` (постоянные аргументы, например `-m <модель>`).
-2. Только видимые окна. Фоновый скрытый процесс — только если человек разрешил на эту сессию.
-3. Деплоер = сессия, названная человеком. Оркестратор не поднимает деплоера на другом инструменте.
-4. Antigravity CLI — только интерактивно (`-i`). Режим `-p` ничего не выводит до конца работы, не отличить работу от зависания.
-5. Права задают флаги launcher: [Launching workers](../docs/ai-handoff-protocol.md#section-launching-workers), пункт 4. Tester — первым выбором Codex: только у него review isolation обеспечена песочницей.
-6. Antigravity: до запуска папка worktree должна быть в доверенных (иначе вопрос на каждую папку); первый запуск проходит мастер вручную один раз. Ошибки 500 — повтор, не отказ задачи.
-7. Antigravity (IDE) не автоматизируется: оркестратор готовит попытку `tools/run-task.ps1 T-NNN -Manual`, человек запускает задачу сам и по окончании отмечает `-MarkFinished`. Не рассчитывай на него как на автономного исполнителя.
-
-## Fallback по лимитам
-
-Лимиты называет человек в начале сессии. Порядок замены (когда `-Status` показывает `limitHit=True`, или процесс `dead`/`failed` без `## Result`). Сначала блокировка должна быть снята: процесс закончился или `-Stop`. Иначе два writer'а в одном worktree.
-
-| Кончился | Берём вместо |
+| Out of | Use instead |
 |---|---|
-| Claude Code | Codex (старшая модель) |
-| Codex | Antigravity CLI (`-i`), для ревью — Claude Code |
+| Claude Code | Codex (larger model) |
+| Codex | Antigravity CLI (`-i`); for review: Claude Code |
 | Antigravity CLI | Codex |
 
-Оркестратор переводит задачу сам, без вопроса человеку, по [Recovery](../docs/ai-handoff-protocol.md#recovery-stale-task), пункт 7. Не осталось ни одного инструмента — задача `blocked` и одна строка человеку.
+No tool left: the task is `blocked` and one line to the human. Orchestrator out of Claude limit: hand the role to Codex through `state/handoff.md`; Claude stays for splitting and disputed acceptance.
 
-Оркестратор: лимит Claude на исходе → передай роль Codex через `state/handoff.md`. Claude остаётся для декомпозиции и спорной приёмки.
+## Tool notes
 
-## Как запускать в каждом инструменте
-
-- **Claude Code:** `/start-role <role> tasks/T-NNN-slug.md`
-- **Codex CLI, Antigravity, Antigravity CLI:** сами читают `AGENTS.md` в корне проекта. Затем промпт:
-
-```text
-Your role: roles/<role>.md. Your task: tasks/T-NNN-slug.md.
-Follow docs/ai-handoff-protocol.md, section "Starting a role session".
-```
-
-## Источники
-
-- https://www.developersdigest.tech/blog/antigravity-cli-vs-claude-code-vs-codex-2026
-- https://nektony.com/reviews/claude-code-vs-codex-cli-vs-antigravity-cli
-- https://www.deployhq.com/blog/comparing-claude-code-openai-codex-and-google-gemini-cli-which-ai-coding-assistant-is-right-for-your-deployment-workflow
-- https://thepromptshelf.dev/blog/google-antigravity-agents-md-rules-guide-2026/
+- Launch: `tools/run-task.ps1 T-NNN <codex|claude|agy>`. Machine settings are environment variables, not script edits: `AGENTFLOW_CODEX` (codex path, `*` allowed, the newest match wins), `AGENTFLOW_CODEX_ARGS` (for example `-m <model>`).
+- Antigravity CLI: interactive only (`-i`); `-p` prints nothing until the end, so work and a hang look the same.
+- Antigravity: the worktree must be in its trusted folders before the first run; the first run passes the setup wizard by hand once. Error 500: retry, not a task failure.
+- Antigravity (IDE): `tools/run-task.ps1 T-NNN -Manual`, the human starts the task, then `-MarkFinished`.
+- Prompt for tools without slash commands (they read `AGENTS.md` themselves): `Your role: roles/<role>.md. Your task: tasks/T-NNN-slug.md. Follow docs/ai-handoff-protocol.md, section "Starting a role session".` Claude Code: `/start-role <role> tasks/T-NNN-slug.md`.
