@@ -47,12 +47,11 @@
 
 ```markdown
 ## Result
-Status: done | rolled back | blocked | failed
-Target: <staging / prod>
-Deployed: commit <SHA>
+Outcome: completed | blocked | failed
+Deployment: deployed | rolled-back | not-started
 Approval: source=human target=prod sha=<SHA> at=<ISO-время>   (только прод)
 Steps: runbook/<файл>, шаги 1–N; отклонения: нет / какие
-Smoke: <что проверено> → ✅ / ❌
+Smoke: <что проверено> → pass | fail
 Rollback: не нужен / выполнен (как, итог)
 Problems:
 - …

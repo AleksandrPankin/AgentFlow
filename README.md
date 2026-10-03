@@ -90,7 +90,7 @@ Human: goal
     all safe-parallel ready tasks launched at once by tools/run-task.ps1
  -> Orchestrator: polls run-task.ps1 -Status (not the human), accepts on evidence, refills free slots
  -> Tester: verdicts with evidence (required for user-visible or risky changes)
- -> Orchestrator: accept or rework, merge, remove worktree + branch
+ -> Orchestrator: gate.py verify, accept (done) or reject (rejected + successor task), merge, remove worktree + branch
  -> Deployer (the session the human designated): dependency first, smoke before and after, ## Result
  -> Orchestrator: /update-memory, /handoff-cmd
 ```

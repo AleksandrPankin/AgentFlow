@@ -29,7 +29,7 @@ Team:
   - Deployer - [roles/deployer.md](../roles/deployer.md). Worker. Deploys one accepted commit.
 - Worker - Developer, Tester, or Deployer.
 - Task File - one unit of work for one worker: `tasks/T-NNN-slug.md`, created by the Orchestrator from [tasks/_template.md](../tasks/_template.md).
-- Result - the `## Result` section at the end of a Task File. Written by the worker who did the task. Format is defined in that worker's role file.
+- Result - the `## Result` section at the end of a Task File: `Outcome` plus the role result ([Task lifecycle](#section-task-lifecycle)). Written by the worker who did the task; format in that worker's role file.
 - Task Ledger - [state/tasks.md](../state/tasks.md): one row per task with its status. Part of Canonical Memory.
 - Stage - one roadmap step in `docs/project-plan.md`. Each task belongs to one Stage.
 - Tool Routing - [roles/tool-routing.md](../roles/tool-routing.md): which tool (Claude Code, Codex CLI, Antigravity) gets which task. Read by the Orchestrator only.
@@ -45,7 +45,7 @@ Team:
 - `state/known-issues.md` - mistakes, failed attempts, dead ends, false hypotheses, and constraints.
 - `state/decisions.md` - important decisions and why they were made.
 - `state/tasks.md` - Task Ledger: task IDs, roles, statuses, commits. Edit it with `python tools/ledger.py`, not with one-off scripts.
-- `tools/` - launcher and ledger scripts. Same in every project.
+- `tools/` - launcher (`run-task.ps1`), gates (`gate.py`: preflight, verify, Stage check), ledger (`ledger.py`). Same in every project.
 - `docs/project-plan.md` - living roadmap: stages, status, what comes next.
 - `runbook/clean-instruction.md` or a project-specific file in `runbook/` - only verified steps that led to the result.
 - `screenshots/` - screenshots that can be linked from the runbook.
@@ -66,7 +66,7 @@ Four files describe "where we are" at different zoom levels. Each level links do
 - The plan does not list tasks. Tasks point to their Stage (column `Stage`).
 - current-step does not copy the ledger. It names the next action and refers to task IDs.
 - handoff does not repeat plan, tasks, or current-step. It links to them.
-- A Stage is done when all its tasks are `done` and the Stage result is checked. Then the plan is updated.
+- A Stage closes per [Task lifecycle](#flow), step 5. Then the plan is updated.
 - Single Mode: the ledger is optional; current-step works as before.
 
 ## Standing rules
@@ -80,7 +80,7 @@ Rule hierarchy: Standing rules and Git rules in this file > role file > Task Fil
 - Prefer the smallest change that satisfies the request. No speculative features, abstractions, or configurability.
 - Change only files and lines required by the task. Preserve existing style and unrelated user work.
 - Clean up only unused code introduced by your own change.
-- Before work, define how success will be checked (test, command, screenshot). Work is done when the check passes.
+- Before work, define how success will be checked (test, command, screenshot).
 - Never write passwords, tokens, private keys, recovery codes, cookies, or other secrets to Markdown.
 - Do not invent screenshots or files. Link a screenshot only if it already exists in `screenshots/`.
 - Do not repeat failed attempts listed in `state/known-issues.md`.
@@ -156,50 +156,65 @@ Worker (Developer, Tester, Deployer):
 
 ## Section: Task lifecycle
 
-Task Ledger statuses, set only by the Orchestrator in `state/tasks.md`:
+### States
 
-```text
-ready -> in progress -> review -> done
-                          |
-                          +-> rework (new task with the reviewer's findings)
-blocked   - waiting for a human or another task
-cancelled - no longer needed
-```
+Five state families, each with one owner. A label means one thing only.
 
-1. Orchestrator writes `tasks/T-NNN-slug.md` from the template, adds a row `ready`.
-2. Orchestrator hands the Task File to a fresh worker session, sets `in progress`.
-3. Worker does the task and fills `## Result`.
-4. Orchestrator reads the Result, sets `review`, checks it against Acceptance criteria and evidence.
-5. Accepted: `done` (then merge per [Git rules](#section-git-rules), or hand to Deployer). Not accepted: `rework`, plus a new Task File that links to the old one.
-6. All tasks of a Stage `done`: check the Stage result, update `docs/project-plan.md`.
+| Family | Where, who writes | Values |
+|---|---|---|
+| Task state | ledger `Status`; Orchestrator through `tools/ledger.py` | `ready`; `in progress` (issued, not yet decided); `review`; `done` (accepted); `rejected` (not accepted, successor in `Notes`); `blocked` (waits for a human or another task); `cancelled` (not needed, reason in `Notes`) |
+| Process state | `tasks/.runtime/T-NNN.json`; launcher | per attempt: `running`; `exited` (exit 0, or a manual attempt marked finished); `error`. `-Status` derives `dead`: `running`, but the process is gone |
+| Outcome | `## Result`, `Outcome:`; worker | `completed` (the assignment was carried out); `blocked` (needs an answer, the question is in the Result); `failed` (could not finish, why is in the Result) |
+| Role result | `## Result`; worker | Developer `Change: <SHA>`. Tester `Verdict:` `pass`, `partial`, `unverified`, `fail` = the worst criterion. Deployer `Deployment:` `deployed`, `rolled-back`, `not-started` |
+| Stage state | `docs/project-plan.md`; Orchestrator | `planned`, `current`, `closed` |
 
-Task IDs are never reused.
+Task state transitions (enforced by `tools/ledger.py`): `ready` -> `in progress` / `blocked` / `cancelled`; `in progress` -> `review` / `blocked` / `rejected` / `cancelled`; `review` -> `done` / `rejected` / `in progress` / `blocked`; `blocked` -> `ready` / `in progress` / `review` / `cancelled`. `done`, `rejected`, `cancelled` are final. Task IDs are never reused.
 
-`in progress` means "issued and not yet accepted", not "a worker is alive". Whether a worker is alive is the process state below.
+### Flow
 
-### Runtime state
+1. The Orchestrator writes `tasks/T-NNN-slug.md` from the template and adds the ledger row (`ready`).
+2. Launch per [Launching workers](#section-launching-workers); ledger `in progress`.
+3. The worker fills `## Result`.
+4. The Orchestrator reads the Result, sets `review`, and decides:
 
-Two different states, never mixed:
+| Result | Decision | Task state |
+|---|---|---|
+| `completed`, `python tools/gate.py verify T-NNN` passes | accept: `ledger.py set T-NNN --status done --commit <SHA>`, then merge per [Git rules](#section-git-rules) | `done` |
+| `completed`, verify fails | reject: a new Task File with the findings, linked to the old one | `rejected`, `Notes`: `-> T-xxx: <why>` |
+| `blocked` | answer the question, ask the human if needed | `blocked`, then `in progress` |
+| `failed`, empty Result, attempt `error` or `dead` | [Recovery](#recovery-stale-task) | `in progress` (new attempt) or `rejected` |
+| Tester `Verdict` other than `pass` | reject the checked task; the Tester task itself is `done` when its verify passes | checked task `rejected` |
+| Deployer `rolled-back` | reject the Deployer task; accepted code stays `done` (accepted is not deployed); the fix is a new developer task | Deployer task `rejected` |
 
-- **Process state** - `tasks/.runtime/T-NNN.json`, written only by `tools/run-task.ps1`: `running | completed | failed`, plus exit code, tool, pid, times, `limitHit`. `completed` means "the tool process exited with code 0" (a manual attempt marked finished: exit code empty), nothing more. At the end of every attempt the launcher checks that the Task File above `## Result` did not change and, for a Tester, review isolation; a violation makes the attempt `failed`. `tools/run-task.ps1 -Status` lists all tasks and also shows `dead`: `running` in the file, but the process is gone (window closed).
-- **Task state** - `## Result` (worker) and the ledger status (Orchestrator). Only these say `done`, `blocked`, `rework`.
-
-Rules:
-
-1. The human is not a dispatcher. The Orchestrator polls `-Status` slowly (for example every 2-3 minutes).
-2. Process ended (`completed`, `failed`, `dead`) - read `## Result`. Filled: [Acceptance](#acceptance). Empty: [Recovery](#recovery-stale-task).
-3. `## Result` filled while the process is still `running` (an interactive tool stays open) - read it. After acceptance stop the worker: `tools/run-task.ps1 T-NNN -Stop`.
-4. **One task = one live worker.** A `running` state with a live process is the task's lock: `run-task.ps1` refuses a second launch of the same task; two launches at the same moment are serialized by a short startup mutex `tasks/.runtime/T-NNN.lock`. Re-issue, Resume, fallback to another tool happen only after the lock is released: the process ended, or the Orchestrator ran `-Stop` on a hung worker. A worker is never declared dead by guess.
-5. Runtime files are not committed (`.gitignore`: `tasks/.runtime/`).
+5. A Stage closes when its tasks are `done` (rejected or cancelled ones replaced by `done` successors) and `python tools/gate.py stage <N>` passes on the main branch. Then update `docs/project-plan.md`.
 
 ### Acceptance
 
-The Orchestrator accepts on evidence, not on the worker's word:
+Acceptance is an event, not a status: the transition `review` -> `done`. `tools/ledger.py` allows it only after `python tools/gate.py verify T-NNN` passed on that SHA. The verify record in `tasks/.runtime/T-NNN.verify.json` (attempt, SHA, target, check exit codes, log) is the evidence. Verify checks:
 
-1. `git diff --name-only <main>...<branch>` is inside `Allowed files`. Anything outside = `rework`, not a quiet merge.
-2. Run the task's `## Checks` commands, exactly as written, on the branch before merge, not only after it. Nothing beyond them: a new experiment, measurement, or manual investigation is a Tester task, not acceptance.
-3. A change visible to a user, or risky (data, auth, deploy scripts, shared config), needs an independent review before merge: a Tester task (UI: in a browser), or a read-only review by a cheap tool. The Orchestrator may skip it only by writing the reason in `state/decisions.md`.
-4. A stage rule from the plan (for example "prototype first") is checked at acceptance too: no prototype, no `done`.
+- the last attempt is `exited` and the Task File above `## Result` did not change;
+- Developer: `Outcome: completed`; branch, clean worktree, and `Change` are the same SHA; `git diff <main>...<SHA>` stays inside `Allowed files`; every `## Checks` command passes there with `AGENTFLOW_TARGET=local`; with `Independent check: tester`, a `done` Tester task with `Verdict: pass` for this SHA exists;
+- Tester: `Outcome: completed`, `Verdict` equals the worst criterion;
+- Deployer: `Outcome: completed`, `Deployment: deployed`, `Smoke` pass, for prod `Approval: source=human target=prod sha=<SHA> at=<time>`.
+
+The Orchestrator does not investigate beyond verify: a new experiment or measurement is a Tester task. When verify notes that the Checks use files changed by the task, read that diff before accepting. A stage rule from the plan (for example "prototype first") is checked at acceptance too.
+
+`Independent check:` is set when the task is written: `tester` for a change visible to a user or risky (data, auth, deploy scripts, shared config), otherwise `none - <reason>`. The human sees it in the plan they approve.
+
+### Runtime state
+
+Process state and task state are never mixed: an `exited` attempt says nothing about the task; only the Result and the ledger do.
+
+- `tasks/.runtime/T-NNN.json` is written only by `tools/run-task.ps1`: one entry per attempt (number, tool and arguments, times, exit code, `limitHit`, target, folder, baseline), appended, never overwritten. Log: `T-NNN.<n>.log`.
+- At the end of every attempt the launcher runs `gate.py endcheck`: the Task File above `## Result` did not change and, for a Tester, review isolation held. A violation makes the attempt `error`.
+
+Rules:
+
+1. The human is not a dispatcher. The Orchestrator polls `tools/run-task.ps1 -Status` slowly (for example every 2-3 minutes).
+2. Attempt ended (`exited`, `error`, `dead`): read `## Result` and decide (Flow, step 4).
+3. `## Result` filled while the attempt is still `running` (an interactive tool stays open): read it; after the decision stop the worker with `tools/run-task.ps1 T-NNN -Stop`.
+4. **One task = one live worker.** A `running` attempt is the task's lock: a second launch of the task is refused. Launches are serialized by `tasks/.runtime/launch.lock` from preflight until the attempt is recorded. Re-issue, Resume, and fallback to another tool happen only after the lock is released: the process ended, or the Orchestrator ran `-Stop` on a hung worker. A worker is never declared dead by guess.
+5. Runtime files are not committed (`.gitignore`: `tasks/.runtime/`).
 
 ### Release order
 
@@ -212,10 +227,10 @@ A worker may vanish: tokens ran out, the session died or was closed, the tool hu
 1. The Task File stays the source of the assignment.
 2. Uncommitted changes in the worktree are not a Result. They are an unverified draft.
 3. The Orchestrator checks the task's branch and worktree: commits, uncommitted changes, any partial `## Result`.
-4. A useful commit exists: a new worker session continues from it on the same branch and worktree. The Orchestrator writes `Resume: <commit>` in the Task File.
-5. No useful commit: the Orchestrator discards the draft in that worktree only, writes `Resume: start fresh`, and starts a new session on the same Task File.
+4. A useful commit exists: a new attempt continues from it on the same branch and worktree. The Orchestrator writes `Resume: <commit>` in the Task File.
+5. No useful commit: the Orchestrator discards the draft in that worktree only, writes `Resume: start fresh`, and starts a new attempt on the same Task File.
 6. The Task ID stays the same while the scope is unchanged. A changed scope means a new task.
-7. Usage-limit failure (`limitHit: true` in the runtime state, or "usage limit", "rate limit", "quota" in the worker log): not a task failure. After the lock is released ([Runtime state](#runtime-state), rule 4) the Orchestrator moves the same Task File to the fallback tool from [roles/tool-routing.md](../roles/tool-routing.md) without asking the human, notes the tool change in the ledger `Notes`, and follows steps 3-5. A tool never changes silently: the ledger `Tool` column always shows the tool that holds the task.
+7. Usage-limit failure (`limitHit: true` in the attempt, or "usage limit", "rate limit", "quota" at the end of the log): not a task failure. After the lock is released (Runtime state, rule 4) the Orchestrator moves the same Task File to the fallback tool from [roles/tool-routing.md](../roles/tool-routing.md) without asking the human, notes the tool change in the ledger `Notes`, and follows steps 3-5. A tool never changes silently: the ledger `Tool` column always shows the tool that holds the task.
 
 ## Section: Launching workers
 
@@ -229,7 +244,7 @@ Who: Orchestrator (or the human). Details per tool: [roles/tool-routing.md](../r
 6. Parallel tasks must not share a network port. Each task gets its own `PORT` in the Task File (section "Port"); tests read it from the environment.
 7. At session start the human states the remaining limit per tool; the Orchestrator keeps it in the conversation, not in memory files, and picks fallbacks from it before launching.
 8. **Maximize safe parallelism.** Launch every ready task that can safely run now; do not keep an independent ready task waiting while a suitable tool is free. A task is ready when its ledger status is `ready` and every `Depends on` task is `done`. Two ready tasks can run together when they share no file in `Allowed files`, no `Port`, and no `Rebuild together` target. Parallelism = min(independent ready tasks, free tool capacity by the stated limits, environment capacity: ports, machine). No fixed number of agents. When a task finishes, refill the free slot at once.
-9. **Preflight.** `run-task.ps1` checks the Task File before it creates anything and refuses the launch with the full list of problems: a `Depends on` task not `done` in the ledger (a pre-merge Tester's checked task needs a filled Result instead); a Tester whose checked branch is not at the `Verifies` SHA (pre-merge) or whose SHA is not merged (live); a Deployer or a live Tester on prod without `-Manual`; an open task whose Task File cannot be read; `Allowed files` or `Rebuild together` shared with a task that is `in progress` / `review` or has a worker process; `Port` shared with a running worker; `Allowed files` overlapping `Do not touch`; `Acceptance criteria` or `## Checks` empty or still the template text; a developer `Branch` not starting with `t-NNN-`; `env: AGENTFLOW_*` lines. Project patterns come from a `## Preflight` section in the Project rules and apply to `## Checks` commands and `## Environment setup` lines of local tasks:
+9. **Preflight.** `run-task.ps1` (through `tools/gate.py preflight`) checks the Task File before it creates anything and refuses the launch with the full list of problems: a `Depends on` task not `done` in the ledger; a pre-merge Tester whose checked task has no `Outcome: completed` with `Change` = the `Verifies` SHA, or whose checked branch moved; a live Tester or Deployer whose SHA is not merged; a Deployer or a live Tester on prod without `-Manual`; an open task whose Task File cannot be read; `Allowed files` or `Rebuild together` shared with a task that is `in progress` / `review` or has a running attempt; `Port` shared with a running attempt; `Allowed files` overlapping `Do not touch`; `Acceptance criteria` or `## Checks` empty or still the template text; a developer task without `Independent check`, or with a `Branch` not starting with `t-NNN-`; a `## Setup` source missing in the main folder; `env: AGENTFLOW_*` lines. Project patterns come from a `## Preflight` section in the Project rules and apply to `## Checks` commands and `## Setup` lines of local tasks:
    - `- deny: <regex>` - no command may match (production hosts, destructive commands);
    - `- require: <regex> => <regex>` - a command matching the first must also match the second (for example `playwright test => --project=local`).
 

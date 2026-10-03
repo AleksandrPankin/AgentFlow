@@ -46,15 +46,15 @@
 
 ```markdown
 ## Result
-Status: done | partial | blocked | failed
-Commit: <SHA> (branch <branch>, worktree <folder>)
-Changed files:
+Outcome: completed | blocked | failed
+Change: <SHA> on <branch>
+Files:
 - путь — что изменено
 Checks:
 - `<команда из ## Checks>` → pass | fail (N passed / M failed)
-Acceptance:
-- [x] критерий 1 — как проверено
-- [ ] критерий 2 — почему нет
+Criteria without a command:
+- критерий — как проверено / почему нет
+Question / why not finished:   (blocked / failed)
 Found, not fixed:
 - …
 Proposed memory updates:

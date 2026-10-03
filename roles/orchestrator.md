@@ -15,7 +15,7 @@
 - Выбираешь инструмент по [Tool Routing](tool-routing.md) с учётом лимитов, которые назвал человек.
 - Ведёшь [Task Ledger](../state/tasks.md) по [Task lifecycle](../docs/ai-handoff-protocol.md#section-task-lifecycle).
 - В задаче developer указываешь ветку и папку worktree.
-- Читаешь Results, принимаешь или создаёшь задачу на доработку (`rework`).
+- Читаешь Results и решаешь по таблице [Task lifecycle](../docs/ai-handoff-protocol.md#flow): принять (`done`) или отклонить (`rejected` + новая задача).
 - Исполнитель пропал (лимит, обрыв, закрыто окно) — действуешь по [Recovery: stale task](../docs/ai-handoff-protocol.md#recovery-stale-task).
 - Делаешь merge принятых веток, потом удаляешь их worktree и ветку по [Git rules](../docs/ai-handoff-protocol.md#section-git-rules). Висящих папок в `<worktrees>` после цикла быть не должно.
 - Единственный пишешь Canonical Memory: в конце — `/update-memory`, `/handoff-cmd`.
@@ -55,7 +55,7 @@
      → запускаешь ВЕСЬ набор: tools/run-task.ps1 T-NNN <tool>, ledger → in progress
        (отказ preflight — правишь Task File по списку и запускаешь снова)
      → редкий опрос: tools/run-task.ps1 -Status
-     → процесс закончился → ## Result → review → Acceptance → done | rework
+     → попытка закончилась → ## Result → review → gate.py verify → done | rejected
      → merge, удаление worktree и ветки
      → сразу заполняешь освободившиеся слоты новыми ready
      → повтор
@@ -63,7 +63,7 @@
 
    Параллельность = min(независимые ready, свободная ёмкость инструментов по лимитам, ёмкость окружения). Фиксированного числа агентов нет. Независимая ready-задача не ждёт, если подходящий инструмент свободен. Правила: [Launching workers](../docs/ai-handoff-protocol.md#section-launching-workers), пункт 8; [Runtime state](../docs/ai-handoff-protocol.md#runtime-state).
 
-   Результат пуст, процесс `dead` или `limitHit` — [Recovery](../docs/ai-handoff-protocol.md#recovery-stale-task), включая переход на запасной инструмент. Второй worker на ту же задачу — только после снятия блокировки (процесс закончился или `-Stop`). Задачи `rework` в рамках одобренной цели запускаешь без нового подтверждения. Нет скрипта — даёшь человеку строки запуска для всего набора сразу ([Tool Routing](tool-routing.md)).
+   Результат пуст, процесс `dead` или `limitHit` — [Recovery](../docs/ai-handoff-protocol.md#recovery-stale-task), включая переход на запасной инструмент. Второй worker на ту же задачу — только после снятия блокировки (процесс закончился или `-Stop`). Задачи-преемники отклонённых в рамках одобренной цели запускаешь без нового подтверждения. Нет скрипта — даёшь человеку строки запуска для всего набора сразу ([Tool Routing](tool-routing.md)).
 5. Выкладка — задача deployer в порядке из [Release order](../docs/ai-handoff-protocol.md#release-order). Все задачи Stage `done` → проверка результата Stage, обновление плана.
 6. `/update-memory`, `/handoff-cmd`.
 
@@ -73,6 +73,6 @@
 
 - Не читай целиком большие файлы, логи, диффы. Читай `## Result`, `git diff --name-only`, хвост лога.
 - Ledger правь только `tools/ledger.py`. Запуск, worktree, состояние процессов — только `tools/run-task.ps1`. Разовые скрипты с экранированием не пиши.
-- Приёмка механическая: `git diff --name-only` против `Allowed files` и команды `## Checks` дословно, ты смотришь вывод. Пересечения, зависимости, порты и проектные запреты уже проверил preflight при запуске — сам их не перепроверяй.
+- Приёмка механическая: `python tools/gate.py verify T-NNN`, ты смотришь вывод. Пересечения, зависимости, порты и проектные запреты уже проверил preflight при запуске — сам их не перепроверяй.
 - Лимит Claude на исходе — оркестратором может быть Codex ([Tool Routing](tool-routing.md)). Роль переходит через `state/handoff.md`, не через пересказ.
 - Решения и правила запуска записывай в проектные файлы (`state/decisions.md`, `tool-routing.md`), а не только в личную память инструмента.

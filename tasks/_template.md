@@ -14,6 +14,7 @@ Resume: нет                            <!-- после сбоя: commit SHA |
 Verifies: T-xxx @ <SHA>                <!-- tester: проверяемая задача и commit -->
 Deploys: <SHA>                         <!-- deployer -->
 Target: staging | prod                 <!-- deployer; tester после выкладки. Проверка до merge (local): удалить строку -->
+Independent check: tester | none - <причина>  <!-- developer: tester, если видно пользователю или рискованно; см. Acceptance в протоколе -->
 
 ## Goal
 
@@ -33,7 +34,7 @@ Target: staging | prod                 <!-- deployer; tester после выкл
 
 - что нельзя менять
 
-## Environment setup
+## Setup
 
 <!-- Что launcher готовит ДО старта (копия/ссылка): node_modules, dist, venv, .env.example → .env. Исполнитель не собирает это сам. «ничего» — тоже ответ. -->
 
@@ -45,10 +46,6 @@ Target: staging | prod                 <!-- deployer; tester после выкл
 
 <!-- deployer и developer общих частей: что нужно пересобрать/выложить вместе с этой задачей и в каком порядке (зависимость → зависимые). «ничего» — тоже ответ. -->
 
-## Review before merge
-
-<!-- нужна ли независимая проверка: нет | tester (интерфейс, в браузере) | чтение дешёвым инструментом. Видимое пользователю или рискованное — не «нет» без записи в decisions.md. -->
-
 ## Acceptance criteria
 
 - [ ] проверяемый критерий 1
@@ -57,7 +54,7 @@ Target: staging | prod                 <!-- deployer; tester после выкл
 ## Checks
 
 <!-- Точные команды, которые доказывают критерии. Исполнитель запускает их дословно, приёмка — те же команды.
-     Узко: конкретный spec-файл или фильтр, а не весь набор. Только локальное окружение (AGENTFLOW_TARGET=local).
+     Узко: конкретный spec-файл или фильтр, а не весь набор. Только локальное окружение (AGENTFLOW_TARGET=local). Запускаются в PowerShell (Windows) или sh.
      Проверки без команды (скриншот, ручной шаг) — отдельной строкой без обратных кавычек.
      Проектные запреты и обязательные флаги — секция "## Preflight" в Project rules; run-task.ps1 проверяет их до запуска. -->
 

@@ -37,10 +37,7 @@
 
 ## Вердикты
 
-- ✅ работает — выполнен, есть доказательство
-- 🟡 частично — указано, что именно не так
-- ❌ не работает — есть шаги воспроизведения
-- ⚪ не проверить — указано, чего не хватает
+По каждому критерию: `pass` (выполнен, есть доказательство) | `partial` (что именно не так) | `fail` (шаги воспроизведения) | `unverified` (чего не хватает для проверки). Общий `Verdict` = худший из критериев: fail > unverified > partial > pass.
 
 ## Стоп, если
 
@@ -52,14 +49,13 @@
 
 ```markdown
 ## Result
-Status: done | partial | blocked
-Checked: T-NNN (commit <SHA>)
-Summary: ✅ N / 🟡 N / ❌ N / ⚪ N
+Outcome: completed | blocked | failed
+Verdict: pass | partial | unverified | fail
 Checks:
 - `<команда из ## Checks>` → pass | fail (N passed / M failed)
-Verdicts:
-- критерий 1 — ✅ — доказательство: <путь / вывод>
-- критерий 2 — ❌ — шаги: … ожидалось … получилось …
+Criteria:
+- критерий 1 - pass - доказательство: <путь / вывод>
+- критерий 2 - fail - шаги: … ожидалось … получилось …
 New defects (вне задачи):
 - …
 Cannot verify, needs:
