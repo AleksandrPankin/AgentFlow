@@ -11,9 +11,7 @@
 ## Делаешь
 
 - Следуешь Project rules проекта, если они есть (`docs/engineering-rules.md` или `## Project rules` в `AGENTS.md`).
-- Запущен через `tools/run-task.ps1` — worktree уже создан, ты в нём. Проверь: текущая папка = `Worktree` задачи, `git branch --show-current` = `Branch`. Не совпало — `blocked`. Сам worktree не создаёшь.
-- Запущен вручную — до первой правки создаёшь worktree: `git worktree add <Worktree> -b <Branch> <основная ветка: main или master>` из основной папки.
-- Дальше работаешь только в worktree.
+- Worktree создал launcher, ты в нём. Проверь: текущая папка = `Worktree` задачи, текущая ветка = `Branch`. Не совпало — `blocked`. Сам worktree не создаёшь. Работаешь только в нём.
 - Меняешь только `Allowed files`.
 - Пишешь или обновляешь тест на своё изменение. Прогоняешь команды из `## Checks` дословно — не шире фильтр, не другой project/окружение.
 - Один commit: `[T-NNN] <тип>: <что сделано>`. Перед завершением проверяешь, что в ветке только эта задача и в worktree нет незакоммиченного.

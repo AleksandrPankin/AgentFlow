@@ -25,7 +25,7 @@ Team:
 - Role - how one kind of session works, in `roles/`:
   - Orchestrator - [roles/orchestrator.md](../roles/orchestrator.md). Splits goals into tasks, accepts results, the only writer of Canonical Memory in Team Mode.
   - Developer - [roles/developer.md](../roles/developer.md). Worker. Changes code for one task.
-  - Tester - [roles/tester.md](../roles/tester.md). Worker. Verifies one task, read-only.
+  - Tester - [roles/tester.md](../roles/tester.md). Worker. Verifies one task under review isolation.
   - Deployer - [roles/deployer.md](../roles/deployer.md). Worker. Deploys one accepted commit.
 - Worker - Developer, Tester, or Deployer.
 - Task File - one unit of work for one worker: `tasks/T-NNN-slug.md`, created by the Orchestrator from [tasks/_template.md](../tasks/_template.md).
@@ -35,6 +35,7 @@ Team:
 - Tool Routing - [roles/tool-routing.md](../roles/tool-routing.md): which tool (Claude Code, Codex CLI, Antigravity) gets which task. Read by the Orchestrator only.
 - Project rules - the project's own code and run rules: `docs/engineering-rules.md`, or the part of `AGENTS.md` under the heading `## Project rules`. Either place is valid; a template update never overwrites them. They name the `<worktrees>` folder and may hold a `## Preflight` section ([Launching workers](#section-launching-workers), rule 9).
 - Checks - the `## Checks` section of a Task File: the exact commands that prove the Acceptance criteria. Workers run them verbatim; acceptance runs the same commands.
+- Review isolation - a Tester cannot change the Developer artifact it checks. It works in a disposable checkout of the checked commit (`Verifies: T-xxx @ <SHA>`); at the end of the attempt the launcher verifies that the checked branch, worktree, and Task File did not change.
 
 ## What goes where
 
@@ -98,7 +99,7 @@ Rule hierarchy: Standing rules and Git rules in this file > role file > Task Fil
 | Change product code | no | yes, within Allowed files | no | no |
 | Commit | memory and `tasks/` only | 1 commit per task | no | no |
 | Merge | yes, after acceptance | no | no | no |
-| Deploy, server, production | no | no | read-only checks | yes, prod with human approval |
+| Deploy, server, production | no | no | checks, no changes | yes; prod after the human confirms it in the Deployer session |
 
 Rules:
 
@@ -115,7 +116,7 @@ Who: Developer (branches, commits) and Orchestrator (merge, cleanup). Tester and
 
 1. One task = one branch + one worktree, both named in the Task File: branch `t-NNN-slug`, folder `<worktrees>\<repo>-t-NNN-slug`. `<worktrees>` is one folder outside the repository and outside OneDrive or other cloud sync (for example `D:\tmp`), named once in the Project rules; not named = ask the human before the first developer task. If a task touches several repositories, use the same branch name in each.
 2. The main folder of the repository stays on the main branch (`main` or `master`). Only the Orchestrator works there: memory, `tasks/`, merges. Developers never change files in the main folder, except their own Task File's `## Result`.
-3. Developer start. Launched by `tools/run-task.ps1`: the worktree already exists and the session starts inside it; check that the current folder is the task's `Worktree` and `git branch --show-current` is the task's `Branch`, then work. Started by hand: create it yourself from the main folder, `git worktree add <folder> -b <branch> <main-branch>`, then `git status` inside it. In both cases: a folder or branch that exists but is not this task's = `blocked`.
+3. Developer start. The launcher creates the worktree, also for a tool started by hand ([Launching workers](#section-launching-workers), rule 1), and the session starts inside it: check that the current folder is the task's `Worktree` and the current branch is the task's `Branch`, then work. Anything else = `blocked`.
 4. Do not mix tasks in one branch. Do not carry changes between tasks through stash or a shared intermediate branch.
 5. One commit per task: `[T-NNN] <type>: <what>`. Before finishing, check that the branch contains only this task's changes and the worktree has no uncommitted changes.
 6. After acceptance the Orchestrator merges the task branch into the main branch, then removes the worktree (`git worktree remove <folder>`) and the branch (`git branch -d <branch>`). Finished worktrees and branches are not left hanging, unless the human forbids the merge. Rejected or abandoned tasks are cleaned up the same way once the human agrees. If the repository is in OneDrive and `git worktree remove` fails with `Permission denied` (OneDrive sets ReadOnly), delete the folder with PowerShell `Remove-Item -Recurse -Force <folder>`, then run `git worktree prune`.
@@ -180,7 +181,7 @@ Task IDs are never reused.
 
 Two different states, never mixed:
 
-- **Process state** - `tasks/.runtime/T-NNN.json`, written only by `tools/run-task.ps1`: `running | completed | failed`, plus exit code, tool, pid, times, `limitHit`. `completed` means "the tool process exited with code 0", nothing more. `tools/run-task.ps1 -Status` lists all tasks and also shows `dead`: `running` in the file, but the process is gone (window closed).
+- **Process state** - `tasks/.runtime/T-NNN.json`, written only by `tools/run-task.ps1`: `running | completed | failed`, plus exit code, tool, pid, times, `limitHit`. `completed` means "the tool process exited with code 0" (a manual attempt marked finished: exit code empty), nothing more. At the end of every attempt the launcher checks that the Task File above `## Result` did not change and, for a Tester, review isolation; a violation makes the attempt `failed`. `tools/run-task.ps1 -Status` lists all tasks and also shows `dead`: `running` in the file, but the process is gone (window closed).
 - **Task state** - `## Result` (worker) and the ledger status (Orchestrator). Only these say `done`, `blocked`, `rework`.
 
 Rules:
@@ -220,20 +221,20 @@ A worker may vanish: tokens ran out, the session died or was closed, the tool hu
 
 Who: Orchestrator (or the human). Details per tool: [roles/tool-routing.md](../roles/tool-routing.md).
 
-1. Launch through `tools/run-task.ps1 T-NNN <tool>` where it exists. It creates the worktree, prepares the environment, opens a visible window with a log, and keeps the [Runtime state](#runtime-state) with the one-worker lock. Do not hand-write launch scripts per task: escaping bugs (`$id`, `\t`, quotes) cost more than the script.
+1. Every attempt starts through `tools/run-task.ps1`, so every attempt passes the same gate. `T-NNN <tool>` creates the worktree or checkout, prepares the environment, opens a visible window with a log, and keeps the [Runtime state](#runtime-state) with the one-worker lock. `T-NNN -Manual` runs the same gate and preparation for a session a human starts (Antigravity IDE, the designated Deployer session, a live Tester on prod) and prints the folder, environment, and prompt; that attempt ends with `-MarkFinished`. Do not hand-write launch scripts per task: escaping bugs (`$id`, `\t`, quotes) cost more than the script.
 2. Workers run in visible windows, never hidden background processes, unless the human says otherwise for this session. A window the human can see is also the only way they can stop a worker.
-3. The Deployer runs only in the session the human designated as the deployer (named in the Task File and in `state/decisions.md`). The Orchestrator does not start its own deployer on another tool, and gives no tool with full access to production.
-4. Full-access modes (`danger-full-access`, `--dangerously-skip-permissions`) are for Developers in a throwaway worktree only. Tester and Deployer run with the tool's normal confirmations.
+3. The Deployer, and a live Tester on prod, run only in the session the human designated (`-Manual`). The Orchestrator does not start a deployer itself and gives no tool full access to production. Production approval comes from the human inside that session, never through the Orchestrator.
+4. Permissions come from the launcher's tool flags, not from prompts. Full access is for a Developer in its own worktree only. A Tester gets [review isolation](#terms): Codex is sandboxed to the disposable checkout plus the main `tasks/` folder; Claude cannot be sandboxed there, so for it the end-of-attempt check is the only guard (prefer Codex for Tester tasks).
 5. Prepare the environment before the worker starts, not inside its budget: dependencies and build artifacts a task needs (`node_modules`, `dist`, virtualenv) are copied or linked into the worktree by the launcher. A task that is `blocked` on a missing environment is an Orchestrator error.
 6. Parallel tasks must not share a network port. Each task gets its own `PORT` in the Task File (section "Port"); tests read it from the environment.
 7. At session start the human states the remaining limit per tool; the Orchestrator keeps it in the conversation, not in memory files, and picks fallbacks from it before launching.
 8. **Maximize safe parallelism.** Launch every ready task that can safely run now; do not keep an independent ready task waiting while a suitable tool is free. A task is ready when its ledger status is `ready` and every `Depends on` task is `done`. Two ready tasks can run together when they share no file in `Allowed files`, no `Port`, and no `Rebuild together` target. Parallelism = min(independent ready tasks, free tool capacity by the stated limits, environment capacity: ports, machine). No fixed number of agents. When a task finishes, refill the free slot at once.
-9. **Preflight.** `run-task.ps1` checks the Task File before it creates anything and refuses the launch with the full list of problems: a `Depends on` task not `done` in the ledger (a pre-merge Tester's checked task needs a filled Result instead); `Allowed files` or `Rebuild together` shared with a task that is `in progress` / `review` or has a worker process; `Port` shared with a running worker; `Allowed files` overlapping `Do not touch`; `Acceptance criteria` or `## Checks` empty or still the template text; a developer `Branch` not starting with `t-NNN-`; `env: AGENTFLOW_*` lines. Project patterns come from a `## Preflight` section in the Project rules and apply to `## Checks` commands and `## Environment setup` lines of local tasks:
+9. **Preflight.** `run-task.ps1` checks the Task File before it creates anything and refuses the launch with the full list of problems: a `Depends on` task not `done` in the ledger (a pre-merge Tester's checked task needs a filled Result instead); a Tester whose checked branch is not at the `Verifies` SHA (pre-merge) or whose SHA is not merged (live); a Deployer or a live Tester on prod without `-Manual`; an open task whose Task File cannot be read; `Allowed files` or `Rebuild together` shared with a task that is `in progress` / `review` or has a worker process; `Port` shared with a running worker; `Allowed files` overlapping `Do not touch`; `Acceptance criteria` or `## Checks` empty or still the template text; a developer `Branch` not starting with `t-NNN-`; `env: AGENTFLOW_*` lines. Project patterns come from a `## Preflight` section in the Project rules and apply to `## Checks` commands and `## Environment setup` lines of local tasks:
    - `- deny: <regex>` - no command may match (production hosts, destructive commands);
    - `- require: <regex> => <regex>` - a command matching the first must also match the second (for example `playwright test => --project=local`).
 
    A refused launch is fixed in the Task File, not worked around.
-10. **Production is opt-in.** Every worker gets `AGENTFLOW_TARGET`: `local` for Developers and pre-merge Testers, the task's `Environment` (`staging` / `prod`) for a live Tester. A Task File cannot override it. Project test and run configs must default to local: unset or `local` never reaches staging or production. A config that can reach production by default is a defect: the Orchestrator issues a developer task to fix it before other work that runs those tests.
+10. **Production is opt-in.** Every worker gets `AGENTFLOW_TARGET`: `local` for Developers and pre-merge Testers, the task's `Target` (`staging` / `prod`) for a live Tester or the Deployer. A Task File cannot override it. Project test and run configs must default to local: unset or `local` never reaches staging or production. A config that can reach production by default is a defect: the Orchestrator issues a developer task to fix it before other work that runs those tests.
 
 ## Section: Updating memory
 

@@ -11,9 +11,9 @@ Depends on: T-xxx | нет
 Branch: t-NNN-slug                     <!-- developer; Git rules в протоколе -->
 Worktree: <worktrees>\<repo>-t-NNN-slug  <!-- developer; <worktrees> из Project rules (протокол, Terms) -->
 Resume: нет                            <!-- после сбоя: commit SHA | start fresh; см. Recovery в протоколе -->
-Checks: T-xxx, commit <SHA>            <!-- tester, deployer; tester without Environment runs in T-xxx's worktree, before merge -->
-Environment: staging | prod            <!-- deployer; tester: live check after deploy, from the main folder, no worktree. Pre-merge tester: delete the line -->
-Prod approved by human: да (дата) | нет  <!-- deployer -->
+Verifies: T-xxx @ <SHA>                <!-- tester: проверяемая задача и commit -->
+Deploys: <SHA>                         <!-- deployer -->
+Target: staging | prod                 <!-- deployer; tester после выкладки. Проверка до merge (local): удалить строку -->
 
 ## Goal
 

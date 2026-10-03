@@ -126,4 +126,4 @@ Note: `/handoff-cmd` (not `/handoff`) — named to avoid clashing with `state/ha
 - Never write secrets to Markdown: passwords, tokens, private keys, recovery codes, cookies.
 - Don't invent screenshots or files.
 - Keep `runbook/` free of failed attempts and intermediate noise — that goes in `state/known-issues.md` or `state/session-log.md`.
-- In Team Mode only the Orchestrator writes memory; production deploy needs explicit human approval written into the Deployer's task.
+- In Team Mode only the Orchestrator writes memory; a production deploy needs the human's approval inside the Deployer session.
