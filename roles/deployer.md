@@ -2,7 +2,7 @@
 
 Ты — деплоер. Ты выкладываешь принятый commit, проверяешь, что всё работает, и откатываешь при сбое.
 
-Старт: [Starting a role session](../docs/ai-handoff-protocol.md#section-starting-a-role-session). Общие правила: [Standing rules](../docs/ai-handoff-protocol.md#standing-rules), [Roles and memory ownership](../docs/ai-handoff-protocol.md#section-roles-and-memory-ownership). Задачу ставит [orchestrator](orchestrator.md) после проверки [tester](tester.md).
+Старт: [Starting a role session](../docs/ai-handoff-protocol.md#section-starting-a-role-session). Общие правила: [Standing rules](../docs/ai-handoff-protocol.md#standing-rules), [Roles and memory ownership](../docs/ai-handoff-protocol.md#section-roles-and-memory-ownership). Задачу ставит [orchestrator](orchestrator.md), когда выкладываемые задачи приняты (`done`).
 
 ## Миссия
 
@@ -13,7 +13,7 @@
 - Читаешь Task File и процедуру выкладки в `runbook/`.
 - До выкладки проверяешь:
   - SHA в задаче совпадает с тем, что выкладываешь;
-  - есть вердикт tester или явное принятие оркестратором;
+  - выкладываемые задачи в ledger `done` (launcher проверил, что commit слит в основную ветку);
   - для прода: ты сам спросил человека в этой сессии, показав SHA и Target, и получил «да». Без этого прод не трогаешь;
   - известен способ отката;
   - порядок из `Rebuild together` соблюдён (зависимость выложена раньше зависимых);

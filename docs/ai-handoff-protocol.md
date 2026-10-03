@@ -1,8 +1,8 @@
 # AI Project Memory Protocol
 
-Purpose: preserve project context during long AI-assisted work, across any tool (Claude Code, Codex, ChatGPT, Cursor) and across sessions — for one session or a team of role sessions.
+Purpose: preserve project context during long AI-assisted work, across AI coding tools and sessions, for one session or a team of role sessions.
 
-This file is the single source of truth. Tool-specific entry points (`.claude/commands/*.md`, Codex `@`-references, custom prompts) and role files (`roles/*.md`) point here by section name instead of repeating rules. If a rule needs to change, change it here once.
+This file is the single source of truth. Entry points (`AGENTS.md`, `CLAUDE.md`, `.claude/commands/*.md`), role files, README, and the guide point here by section name instead of repeating rules. Scripts in `tools/` enforce this file; a script that disagrees with it is a defect in the script. If a rule needs to change, change it here once.
 
 ## Terms
 
@@ -32,7 +32,7 @@ Team:
 - Result - the `## Result` section at the end of a Task File: `Outcome` plus the role result ([Task lifecycle](#section-task-lifecycle)). Written by the worker who did the task; format in that worker's role file.
 - Task Ledger - [state/tasks.md](../state/tasks.md): one row per task with its status. Part of Canonical Memory.
 - Stage - one roadmap step in `docs/project-plan.md`. Each task belongs to one Stage.
-- Tool Routing - [roles/tool-routing.md](../roles/tool-routing.md): which tool (Claude Code, Codex CLI, Antigravity) gets which task. Read by the Orchestrator only.
+- Tool Routing - [roles/tool-routing.md](../roles/tool-routing.md): which tool gets which task. Read by the Orchestrator only.
 - Project rules - the project's own code and run rules: `docs/engineering-rules.md`, or the part of `AGENTS.md` under the heading `## Project rules`. Either place is valid; a template update never overwrites them. They name the `<worktrees>` folder and may hold a `## Preflight` section ([Launching workers](#section-launching-workers), rule 9).
 - Checks - the `## Checks` section of a Task File: the exact commands that prove the Acceptance criteria. Workers run them verbatim; acceptance runs the same commands.
 - Review isolation - a Tester cannot change the Developer artifact it checks. It works in a disposable checkout of the checked commit (`Verifies: T-xxx @ <SHA>`); at the end of the attempt the launcher verifies that the checked branch, worktree, and Task File did not change.
@@ -54,7 +54,7 @@ Team:
 
 ### Planning levels
 
-Four files describe "where we are" at different zoom levels. Each level links down, never copies:
+Four files describe "where we are" at different zoom levels. Each level links to the others and never copies them:
 
 | File | Level | Horizon | Answers | Example |
 |---|---|---|---|---|
@@ -73,7 +73,7 @@ Four files describe "where we are" at different zoom levels. Each level links do
 
 Apply to every session and every role. Based on the Karpathy guidelines: think before coding, simplicity first, surgical changes, goal-driven execution.
 
-Rule hierarchy: Standing rules and Git rules in this file > role file > Task File. Lower levels add specifics; they cannot cancel or weaken higher ones. Exception: an explicit instruction from the human.
+Rule order: this file > Project rules (including nested `AGENTS.md`) > role file > Task File. Lower levels add specifics; they cannot cancel or weaken higher ones. Imperative rules are mandatory; "prefer" and "should" are defaults that may be left with a stated reason. An explicit instruction from the human overrides a rule for the current session only, and the Orchestrator notes it in the ledger `Notes` or `state/decisions.md`; it never covers secrets, review isolation, or production approval.
 
 - Inspect relevant project files before making assumptions or asking questions.
 - If a request is unclear or has several readings, state your assumptions or ask. Do not pick silently.
@@ -94,8 +94,7 @@ Rule hierarchy: Standing rules and Git rules in this file > role file > Task Fil
 | | Orchestrator | Developer | Tester | Deployer |
 |---|---|---|---|---|
 | Read code and memory | yes | yes | yes | yes |
-| Write Canonical Memory, `tasks/` | **only writer** | no | no | no |
-| Write own Result | - | yes | yes | yes |
+| Write Canonical Memory and Task Files | **only writer** | own `## Result` only | own `## Result` only | own `## Result` only |
 | Change product code | no | yes, within Allowed files | no | no |
 | Commit | memory and `tasks/` only | 1 commit per task | no | no |
 | Merge | yes, after acceptance | no | no | no |
@@ -106,9 +105,9 @@ Rules:
 1. Workers never run [Updating memory](#section-updating-memory), [Handoff](#section-handoff-short-transfer-note), or [Updating the runbook](#section-updating-the-runbook). They put suggestions in `Proposed memory updates` of their Result. The Orchestrator decides what goes into Canonical Memory.
 2. One task = one fresh session. Do not reuse a chat for the next task.
 3. Tasks that run in parallel must not share any file in Allowed files. Each developer task works in its own worktree (see [Git rules](#section-git-rules)), so parallel tasks in one repository are fine when their files do not overlap.
-4. A worker that cannot continue sets Result status `blocked` with the question and stops. It does not guess and does not widen the task.
+4. A worker that cannot continue writes `Outcome: blocked` with the question and stops. It does not guess and does not widen the task.
 5. Workers do not launch sub-agents, sub-models, or parallel agents. Only the Orchestrator decides what runs in parallel, as separate sessions.
-6. Results are short: status, branch, commit, checks, findings. No reports about internal tools or token usage.
+6. Results are short and follow the role file format. No reports about internal tools or token usage.
 
 ## Section: Git rules
 
@@ -264,7 +263,7 @@ Run after meaningful work, or before ending a long session.
 5. Add a decision to `state/decisions.md` if an important choice changed future work - dated, with a reason.
 6. Add an entry to `state/known-issues.md` if there was a dead end, error, false lead, or constraint.
 7. Update `docs/project-plan.md` if the roadmap changed.
-8. Move accepted `Proposed memory updates` from worker Results into the files above.
+8. Move accepted `Proposed memory updates` from worker Results into the files above; a rejected proposal gets one line with the reason in `state/session-log.md`.
 9. Follow Standing rules above (no secrets, etc).
 
 ## Section: Handoff (short transfer note)
@@ -273,17 +272,17 @@ Who: Single Mode session or Orchestrator.
 
 Update `state/handoff.md` only, as a short transfer note for the next AI session. Include:
 
+- As of: date and `main@<SHA>`
 - Goal
-- Current State
+- Verified state (each fact with where it was checked)
 - Files in Flight
 - Changed Since Last Handoff
 - Failed Attempts / False Leads
 - Assumptions
 - Open Problems
-- Next Exact Step
 - Files To Read First
 
-Keep it short: usually 1-2 screens (about 4 KB). `state/current-step.md` the same. History does not stay there: when a file passes the limit, move finished items to `state/session-log.md` in the same update. Rules that must survive a new session or another tool belong in project files (`state/decisions.md`, `roles/tool-routing.md`, Project rules), never only in one tool's private memory. Link to detailed files instead of duplicating long logs. Open tasks are listed in `state/tasks.md`, not here. Separate verified facts from assumptions.
+Keep it short: usually 1-2 screens (about 4 KB). `state/current-step.md` the same. History does not stay there: when a file passes the limit, move finished items to `state/session-log.md` in the same update. Rules that must survive a new session or another tool belong in project files (`state/decisions.md`, Project rules), never only in one tool's private memory. Link to detailed files instead of duplicating long logs. Open tasks live in `state/tasks.md` and the next action in `state/current-step.md`, not here.
 
 ## Section: Updating the runbook
 
