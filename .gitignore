@@ -1,9 +1,6 @@
 # run-task.ps1 process state and logs
 tasks/.runtime/
 
-# local FPF spec copy, not part of the template
-FPF-Spec/
-
 # dashboard: built pages and local versions of its sources (the sources themselves are committed)
 dashboard/out/
 dashboard/versions/

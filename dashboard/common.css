@@ -29,6 +29,9 @@ body{margin:0;height:100vh;overflow:hidden;background:var(--bg);color:var(--ink)
 .nav a.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .topbar .sp{flex:1}
 .topbar .gen{color:var(--mut);font-size:12px;white-space:nowrap}
+.iconbtn:disabled{opacity:.45;cursor:not-allowed}
+.iconbtn.busy svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .iconbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--chip);cursor:pointer;display:grid;place-items:center;color:var(--ink);padding:0}
 .iconbtn:hover{border-color:var(--accent)}
 .iconbtn svg{width:18px;height:18px}

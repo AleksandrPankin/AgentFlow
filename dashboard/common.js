@@ -68,12 +68,33 @@ const C=(function(){
   // ---- шапка и тема ----
   const SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
   const MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  const REFRESH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>';
+  // Кнопка «Обновить»: просит dashboard/serve.py пересобрать обе страницы (POST rebuild) и перезагружает текущую.
+  // Без serve.py (страница открыта как файл) кнопка неактивна: статичный HTML не может запустить Python.
+  function initRefresh(btn){
+    btn.innerHTML=REFRESH;
+    const hint="Пересобрать дашборд целиком (обе страницы) и обновить";
+    const noServer="Кнопка работает через сервер: запусти python dashboard/serve.py и открой http://127.0.0.1:8765";
+    if(!/^https?:$/.test(location.protocol)){ btn.disabled=true; btn.title=noServer; return; }
+    btn.title=hint;
+    btn.onclick=async()=>{
+      btn.disabled=true; btn.classList.add("busy"); btn.title="Пересборка…";
+      try{
+        const r=await fetch("rebuild",{method:"POST"});
+        const j=await r.json().catch(()=>({}));
+        if(r.ok&&j.ok){ location.reload(); return; }
+        alert(r.status===404||r.status===501?noServer:"Пересборка не удалась:\n"+(j.error||r.status));
+      }catch(e){ alert(noServer); }
+      btn.disabled=false; btn.classList.remove("busy"); btn.title=hint;
+    };
+  }
   function initHeader(active,generated,project){
     let saved=null; try{ saved=localStorage.getItem("dash-theme"); }catch(e){}
     if(saved) document.documentElement.dataset.theme=saved;
     const hdr=document.getElementById("hdr");
     hdr.className="topbar";
-    hdr.innerHTML=`<h1>Задачи${project?" · "+esc(project):""}</h1><nav class="nav"><a href="index.html"${active==="over"?' class="on"':""}>Обзор</a><a href="graph.html"${active==="gantt"?' class="on"':""}>Гант и сроки</a></nav><span class="sp"></span><span class="gen">Собрано ${esc(generated)}</span><button class="iconbtn" id="theme" type="button" aria-label="Сменить тему"></button>`;
+    hdr.innerHTML=`<h1>Задачи${project?" · "+esc(project):""}</h1><nav class="nav"><a href="index.html"${active==="over"?' class="on"':""}>Обзор</a><a href="graph.html"${active==="gantt"?' class="on"':""}>Гант и сроки</a></nav><span class="sp"></span><span class="gen">Собрано ${esc(generated)}</span><button class="iconbtn" id="refresh" type="button" aria-label="Пересобрать дашборд"></button><button class="iconbtn" id="theme" type="button" aria-label="Сменить тему"></button>`;
+    initRefresh(document.getElementById("refresh"));
     const btn=document.getElementById("theme");
     const isDark=()=>{ const t=document.documentElement.dataset.theme; return t?t==="dark":matchMedia("(prefers-color-scheme:dark)").matches; };
     const paint=()=>{ btn.innerHTML=isDark()?SUN:MOON; btn.title=isDark()?"Светлая тема":"Тёмная тема"; };

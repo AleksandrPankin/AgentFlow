@@ -5,6 +5,7 @@ What changed in each AgentFlow version. Why it changed: `state/decisions.md`. Th
 ## 2.1.0 - 2026-10-04
 
 - New template-owned `dashboard/`: a read-only view for the human built from the ledger, Task Files, and git (`python dashboard/build.py` -> `dashboard/out/index.html`, `out/graph.html`). Task table with filters over every axis, task card, Gantt, timeline, dependency, successor and check links. Interface in Russian (it is human-facing); ledger statuses are shown as Russian labels.
+- `dashboard/serve.py`: local server with a Refresh button in the page header that rebuilds both pages; the dashboard is rebuilt on demand only.
 - `dashboard/snapshot.py`: local versions of the dashboard sources with rollback; `dashboard/UI-RULES.md`: rules for changing the interface; `dashboard/README.md`: files and the data contract.
 - Protocol: new section "Dashboard"; `dashboard/` added to the template-owned list. `.gitignore` gets `dashboard/out/` and `dashboard/versions/`.
 - Orchestrator role: rebuild the dashboard when the human asks or a Stage closes.
