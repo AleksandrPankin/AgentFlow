@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Builds dashboard/out/index.html and out/graph.html from state/tasks.md, tasks/T-*.md and git history.
+"""Собирает dashboard/out/index.html и out/graph.html из state/tasks.md, tasks/T-*.md и истории git.
 
-Run from anywhere:  python dashboard/build.py
-Read-only for the project: writes only dashboard/out/ (git-ignored). Data contract between this script and the
-page templates: dashboard/README.md. Versions of the dashboard itself: dashboard/snapshot.py.
+Запуск из любого места: python dashboard/build.py
+Проект только читает; пишет только dashboard/out/ (в .gitignore). Какие поля отдаёт скрипт страницам: dashboard/README.md.
+Версии самого дашборда: dashboard/snapshot.py.
 """
 import json, re, subprocess, sys
 from datetime import datetime
@@ -16,16 +16,19 @@ LEDGER = ROOT / "state" / "tasks.md"
 TASKS = ROOT / "tasks"
 PROJECT = ROOT.name
 
-LEDGER_STATUSES = {"ready", "in progress", "review", "done", "rejected", "blocked", "cancelled"}  # protocol, "Task lifecycle"
-LEGACY_STATUS = {"failed": "rejected", "partial": "review", "rework": "rejected"}  # AgentFlow 1.x ledger words
-FINAL = {"done", "rejected", "cancelled"}
-RESULT_LABEL = {  # Result `Outcome:` (2.x) or `Status:` (1.x) in a Task File -> label. Not acceptance.
-    "completed": "Completed by worker", "done": "Completed by worker", "partial": "Partially completed",
-    "blocked": "Worker blocked", "failed": "Worker failed", "rolled back": "Deployment rolled back",
+STATUS_RU = {  # словарь реестра (ledger) -> метка
+    "ready": "В очереди", "in progress": "В работе", "review": "На приёмке",
+    "done": "Принята", "rejected": "Отклонена", "blocked": "Заблокирована", "cancelled": "Отменена",
 }
-NO_REPORT = "No report"
-ROLES = {"developer", "tester", "deployer"}
-AGENTS = (("claude", "Claude Code"), ("codex", "Codex"), ("antigravity", "Antigravity"), ("agy", "Antigravity"))
+LEGACY_STATUS = {"failed": "Отклонена", "partial": "На приёмке", "rework": "В работе"}  # старый словарь реестра
+ST_VALUES = set(STATUS_RU.values())
+FINAL = {"Принята", "Отклонена", "Отменена"}
+RESULT_RU = {  # Result в Task File: старое `Status:` и новое `Outcome:`
+    "done": "Завершено исполнителем", "completed": "Завершено исполнителем", "partial": "Частично завершено",
+    "blocked": "Исполнитель заблокирован", "failed": "Провал исполнителя", "rolled back": "Откат выкладки",
+}
+ROLE_RU = {"developer": "Разработчик", "tester": "Тестер", "deployer": "Деплоер"}
+VERDICT_RU = {"pass": "pass", "partial": "partial", "fail": "fail", "unverified": "unverified"}
 
 
 def split_row(line):
@@ -33,14 +36,14 @@ def split_row(line):
 
 
 def tool_family(raw):
-    """the agent that did the work (not the role): Claude Code / Codex / Antigravity; a handoff `a -> b` counts the last one"""
+    """агент-исполнитель (не роль): Claude Code / Codex / Antigravity"""
     s = raw.lower()
-    if "→" in s or "->" in s:
-        s = re.split(r"→|->", s)[-1]
-    for key, label in AGENTS:
-        if key in s:
-            return label
-    return raw.strip() or "Not set"
+    if "→" in s:  # передача: берём того, кто закончил
+        s = s.split("→")[-1]
+    if "claude" in s: return "Claude Code"
+    if "codex" in s: return "Codex"
+    if "antigravity" in s or "agy" in s: return "Antigravity"
+    return raw.strip() or "Не указан"
 
 
 def field(text, name):
@@ -54,7 +57,7 @@ def section(text, name):
 
 
 def git_dates():
-    """file -> (first commit, last commit) for tasks/*.md"""
+    """файл -> (первый коммит, последний коммит) по tasks/*.md"""
     out = subprocess.run(["git", "log", "--format=@%aI", "--name-only", "--", "tasks"],
                          cwd=ROOT, capture_output=True, text=True, encoding="utf-8").stdout
     first, last, cur = {}, {}, None
@@ -63,7 +66,7 @@ def git_dates():
             cur = line[1:]
         elif line.strip() and cur:
             f = line.strip()
-            last.setdefault(f, cur)  # the log runs newest to oldest
+            last.setdefault(f, cur)  # лог от нового к старому
             first[f] = cur
     return first, last
 
@@ -79,7 +82,7 @@ def parse_deps(s):
 
 def norm_status(raw):
     k = raw.strip().lower()
-    return k if k in LEDGER_STATUSES else LEGACY_STATUS.get(k) or raw.strip()
+    return STATUS_RU.get(k) or LEGACY_STATUS.get(k) or raw.strip()
 
 
 def git(*args):
@@ -102,7 +105,7 @@ def ledger_rows(text):
 
 
 def history():
-    """Replays the git history of state/tasks.md: statuses and dependencies over time."""
+    """Проигрывает историю git файла state/tasks.md: статусы и зависимости во времени."""
     log = git("log", "--reverse", "--format=%H\t%aI\t%s", "--", "state/tasks.md").strip().splitlines()
     timeline, edges, open_edges, commits = {}, [], {}, []
     prev_status, prev_deps = {}, {}
@@ -128,15 +131,15 @@ def history():
 
 
 def successor_edges(tasks):
-    """dead task -> its successor: `-> T-xxx` in the dead task's Notes (protocol convention), or "successor of / replaces / retry of T-xxx" on the new one"""
+    """мёртвая задача -> её преемник: `-> T-xxx` в Notes мёртвой, либо «преемник/повтор T-xxx» у новой"""
     pairs = set()
     for t in tasks.values():
-        if t["status"] in ("rejected", "cancelled"):
+        if t["status"] in ("Отклонена", "Отменена"):
             for m in re.findall(r"(?:->|→)\s*(T-\d{3})", t["notes"]):
                 if m in tasks and m != t["id"]:
                     pairs.add((t["id"], m))
-        for m in re.findall(r"(?:successor of|replaces|rework of|retry of|re-?issue of)\s*`?(T-\d{3})", t["title"] + " " + t["notes"], re.I):
-            if m in tasks and m != t["id"] and tasks[m]["status"] in ("rejected", "cancelled"):
+        for m in re.findall(r"(?:преемник|successor of|replaces|rework of|повтор|перевыдан\w*)\s*(?:of\s*)?`?(T-\d{3})", t["title"] + " " + t["notes"], re.I):
+            if m in tasks and m != t["id"] and tasks[m]["status"] in ("Отклонена", "Отменена"):
                 pairs.add((m, t["id"]))
     return [{"from": a, "to": b, "kind": "succ"} for a, b in sorted(pairs)]
 
@@ -144,7 +147,7 @@ def successor_edges(tasks):
 def check_edges(tasks):
     out = []
     for t in tasks.values():
-        if t["role"] == "tester":
+        if t["role"] == "Тестер":
             m = [x for x in re.findall(r"T-\d{3}", t["title"]) if x != t["id"] and x in tasks]
             if m:
                 out.append({"from": t["id"], "to": m[0], "kind": "check"})
@@ -165,7 +168,7 @@ def chains(tasks, succ):
 
 
 def terminal_end(tl):
-    """time of entering the trailing run of final statuses; None if the task is not closed"""
+    """время входа в хвостовую серию финальных статусов; None, если задача не закрыта"""
     if not tl or tl[-1][1] not in FINAL:
         return None
     i = len(tl) - 1
@@ -175,37 +178,38 @@ def terminal_end(tl):
 
 
 OWN_RE = re.compile(
-    r"(remarks?|bugs?|requests?|review|feedback)\s+(from|by)\s+(the\s+)?(owner|human|user)"
-    r"|(owner|human|user)\s+(\d{4}-\d\d-\d\d\s+)?(request(ed|s)?|report(ed|s)?|wants?|asked|found|noticed|chose|demanded|said|wrote)"
-    r"|owner-reported|owner review|human review", re.I)
+    r"(замечани\w+|баги|просьб\w+|ревью)\s+(от\s+)?владельц\w+"
+    r"|владелец\s+(\d{4}-\d\d-\d\d\s+)?(хочет|просит|попросил|выбрал|отметил|увидел|видел|сообщил|заметил|потребовал|назвал|указал|написал)"
+    r"|(по|от)\s+(просьб\w+|требовани\w+)\s+владельц\w+|owner\s+(request|report|remark|bugs?|asked|wants|found|noticed|chose)|owner-reported|owner review",
+    re.I)
 
 
 def origins(tasks, goal_text):
-    """Who set the task - an estimate from the text: tester/deployer (links to their report) > human (their remark) > orchestrator."""
+    """Кто поставил задачу — оценка по тексту: тестер/деплоер (ссылка на их отчёт) > владелец (его замечание) > оркестратор."""
     for t in tasks.values():
         txt = t["title"] + " " + t["notes"]
         why = None
-        if t["role"] != "tester":
+        if t["role"] != "Тестер":
             for ref in sorted(set(re.findall(r"T-\d{3}", txt))):
                 r = tasks.get(ref)
-                if r and r["id"] != t["id"] and r["role"] in ("tester", "deployer") and r["c0"] < t["c0"]:
-                    t["origin"], why = r["role"], f"finding in {ref} ({r['role']})"
+                if r and r["id"] != t["id"] and r["role"] in ("Тестер", "Деплоер") and r["c0"] < t["c0"]:
+                    t["origin"], why = r["role"], f"находка в {ref} ({r['role'].lower()})"
                     break
         if why is None:
             m = OWN_RE.search(txt + " " + goal_text.get(t["id"], ""))
             if m:
-                t["origin"], why = "human", "\"" + m.group(0).strip() + "\""
+                t["origin"], why = "Владелец", "«" + m.group(0).strip() + "»"
         if why is None:
-            t["origin"], why = "orchestrator", "default: the Orchestrator writes the Task File"
+            t["origin"], why = "Оркестратор", "по умолчанию: Task File пишет оркестратор"
         t["originWhy"] = why
 
 
-SKIP_RE = re.compile(r"package-lock\.json|\.lock$|\.lockb$|\.(png|jpe?g|gif|webp|svg|ico|mp4|webm|pdf|woff2?|zip)$", re.I)  # lockfiles and binary assets: not counted
+SKIP_RE = re.compile(r"package-lock\.json|\.lock$|\.lockb$|\.(png|jpe?g|gif|webp|svg|ico|mp4|webm|pdf|woff2?|zip)$", re.I)  # lock-файлы и бинарные ресурсы не считаем
 DOC_RE = re.compile(r"^(docs|tasks|state|runbook|screenshots)/|\.md$", re.I)
 
 
 def sizes():
-    """change size per worker commit (subject starts with [T-NNN]); code = everything except docs/tasks/state/runbook and *.md"""
+    """объём изменений по коммитам исполнителей (тема начинается с [T-NNN]); код = всё кроме docs/tasks/state/runbook/screenshots и *.md"""
     out = git("log", "--all", "--numstat", "--format=@%H|%s")
     res, cur = {}, None
     for line in out.splitlines():
@@ -233,7 +237,7 @@ def size_class(z):
     if not z or not z["files"]:
         return "—"
     n = z["codeAdd"] + z["codeDel"]
-    return "docs" if n == 0 else "S" if n < 50 else "M" if n < 300 else "L" if n < 1000 else "XL"
+    return "док." if n == 0 else "S" if n < 50 else "M" if n < 300 else "L" if n < 1000 else "XL"
 
 
 COMMIT_LINE = re.compile(r"^[ \t]*(?:[-*][ \t]+)?(Commit|Change)[ \t]*:[ \t]*(.+?)[ \t]*$", re.M)
@@ -241,12 +245,12 @@ SHA_RE = re.compile(r"\b(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b")
 
 
 def report_commit(res):
-    """The commit the worker named explicitly in a `Commit:` or `Change:` line of the report.
-    Taken only if all such lines hold exactly one hash; otherwise (none, or several) there is no value."""
+    """Коммит, который исполнитель явно назвал в строке `Commit:` или `Change:` отчёта.
+    Берём только если во всех таких строках ровно один хеш; иначе (нет хеша или их несколько) значения нет."""
     clean = re.sub(r"<!--.*?-->", "", res, flags=re.S)
     found, first = [], None
     for label, rest in COMMIT_LINE.findall(clean):
-        lead = re.match(r"[`'\"]?([0-9a-f]{7,40})", rest)          # a hash right after the label; all-digit hashes allowed here
+        lead = re.match(r"[`'\"]?([0-9a-f]{7,40})", rest)          # хеш сразу после метки: допускаем и из одних цифр
         for sha in ([lead.group(1)] if lead else []) + SHA_RE.findall(rest):
             if sha not in found:
                 found.append(sha)
@@ -277,19 +281,19 @@ def main():
         body = p.read_text(encoding="utf-8-sig") if p else ""
         res = section(body, "Result")
         res_raw = (field(res, "Outcome") or field(res, "Status")).lower()
-        res_key = next((k for k in RESULT_LABEL if res_raw.startswith(k)), "")
+        res_key = next((k for k in RESULT_RU if res_raw.startswith(k)), "")
         ind_raw = field(body, "Independent check").lower()
         ind = "tester" if ind_raw.startswith("tester") else "none" if ind_raw.startswith("none") else ""
-        status = norm_status(r["Status"])
+        status = STATUS_RU.get(r["Status"].lower(), r["Status"])
         rel = f"tasks/{p.name}" if p else ""
         upd = r.get("Updated", "")
         created = first.get(rel, "")[:10]
         t = {
             "id": tid, "title": r["Title"], "stage": r["Stage"] or "—",
-            "role": r["Role"].strip().lower(), "tool": tool_family(r["Tool"]),
+            "role": ROLE_RU.get(r["Role"], r["Role"]), "tool": tool_family(r["Tool"]),
             "toolRaw": r["Tool"],
             "status": status, "final": status in FINAL,
-            "result": RESULT_LABEL.get(res_key, NO_REPORT),
+            "result": RESULT_RU.get(res_key, "Нет отчёта"),
             "outcomeSrc": "Outcome" if field(res, "Outcome") else ("Status" if field(res, "Status") else ""),
             "outcomeRaw": (field(res, "Outcome") or field(res, "Status"))[:240],
             "reportCommit": report_commit(res),
@@ -309,29 +313,29 @@ def main():
         goalText[tid] = body.split("## Result")[0][:2500]
         tasks[tid] = t
 
-    # who checked: a tester task names the checked task as the first T-NNN in its title
+    # кто проверил: tester-задача ссылается на проверяемую первой T-NNN в заголовке
     verdicts = {}
     for t in tasks.values():
-        if t["role"] == "tester":
+        if t["role"] == "Тестер":
             m = [x for x in re.findall(r"T-\d{3}", t["title"]) if x != t["id"]]
             if m:
                 verdicts.setdefault(m[0], []).append((t["id"], t["verdict"], t["status"]))
     for t in tasks.values():
         t["checkedBy"] = verdicts.get(t["id"], [])
-        if t["role"] != "developer":
+        if t["role"] != "Разработчик":
             t["check"] = "—"
         elif t["checkedBy"]:
-            vs = [v for _, v, st in t["checkedBy"] if st != "cancelled"]
-            if "fail" in vs: t["check"] = "Tester: fail"
-            elif "partial" in vs or "unverified" in vs: t["check"] = "Tester: partial"
-            elif "pass" in vs: t["check"] = "Tester: pass"
-            else: t["check"] = "Tester assigned"
-        elif t["ind"] == "tester": t["check"] = "Tester needed, no report"
-        elif t["ind"] == "none": t["check"] = "No independent check"
-        else: t["check"] = "Not set (older task)"
-        t["blockedBy"] = [d for d in t["deps"] if d in tasks and not tasks[d]["final"] and tasks[d]["status"] != "done"]
+            vs = [v for _, v, st in t["checkedBy"] if st != "Отменена"]
+            if "fail" in vs: t["check"] = "Тестер: fail"
+            elif "partial" in vs or "unverified" in vs: t["check"] = "Тестер: частично"
+            elif "pass" in vs: t["check"] = "Тестер: pass"
+            else: t["check"] = "Тестер назначен"
+        elif t["ind"] == "tester": t["check"] = "Нужен тестер, нет отчёта"
+        elif t["ind"] == "none": t["check"] = "Без независимой проверки"
+        else: t["check"] = "Не задано (старая задача)"
+        t["blockedBy"] = [d for d in t["deps"] if d in tasks and not tasks[d]["final"] and tasks[d]["status"] != "Принята"]
         t["blocks"] = []
-        t["waitsOwner"] = (not t["final"]) and bool(re.search(r"owner|human", t["notes"], re.I)) and t["status"] in ("blocked", "ready", "review")
+        t["waitsOwner"] = (not t["final"]) and bool(re.search(r"владел|owner", t["notes"], re.I)) and t["status"] in ("Заблокирована", "В очереди", "На приёмке")
     for t in tasks.values():
         for d in t["deps"]:
             if d in tasks:
@@ -352,7 +356,7 @@ def main():
         t["chain"] = ch[t["id"]]
     allc = [l.split("|", 1) for l in git("log", "--all", "--format=%aI|%s").splitlines() if "|" in l]
     pings = sorted(ts for ts, _ in allc)
-    work = {}  # worker commits: subject starts with [T-NNN]
+    work = {}  # коммиты исполнителей: тема начинается с [T-NNN]
     for ts, subj in allc:
         m = re.match(r"\[(T-\d{3})\]", subj)
         if m:
@@ -366,16 +370,16 @@ def main():
         t["sizeN"] = (t["size"]["codeAdd"] + t["size"]["codeDel"]) if t["size"] else 0
     graph = {"project": PROJECT, "generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "now": datetime.now().astimezone().isoformat(timespec="seconds"),
              "tasks": list(tasks.values()), "edges": dep_edges + succ + check_edges(tasks), "commits": commits, "pings": pings}
-    payload = json.dumps(graph, ensure_ascii=False).replace("</", "<\\/")  # both pages get the same data
+    payload = json.dumps(graph, ensure_ascii=False).replace("</", "<\\/")  # обе страницы получают одни и те же данные
     OUT.mkdir(exist_ok=True)
     for tpl_name, out_name in (("graph_template.html", "graph.html"), ("template.html", "index.html")):
         page = render(tpl_name).replace("__PROJECT__", PROJECT).replace("__DATA__", payload)
         (OUT / out_name).write_text(page, encoding="utf-8")
-    print(f"{len(tasks)} tasks, {len(dep_edges)} dependencies, {len(succ)} replacements, {len(pings)} commits -> {OUT}")
+    print(f"{len(tasks)} задач, {len(dep_edges)} зависимостей, {len(succ)} замен, {len(pings)} коммитов -> {OUT}")
 
 
 def render(name):
-    """a page template with the shared CSS/JS inlined, so each page is one self-contained file"""
+    """шаблон страницы с общими CSS/JS внутри: каждая страница - один самодостаточный файл"""
     page = (HERE / name).read_text(encoding="utf-8")
     for marker, src in (("/*FILTERBAR_CSS*/", "filterbar.css"), ("/*FILTERBAR_JS*/", "filterbar.js"),
                         ("/*COMMON_CSS*/", "common.css"), ("/*COMMON_JS*/", "common.js")):

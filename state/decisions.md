@@ -14,7 +14,7 @@ Why: long AI sessions lose context, repeat old errors, and forget why decisions 
 
 ### Dashboard is template-owned, in `dashboard/` beside `tools/`
 
-Decision: the human's read-only view (built from the ledger, Task Files, git) ships with the template as `dashboard/`, English interface, vocabulary from the protocol. Only sources are committed; `out/` and `versions/` are git-ignored. Local versioning (`snapshot.py`) stays so the dashboard can be changed and rolled back.
+Decision: the human's read-only view (built from the ledger, Task Files, git) ships with the template as `dashboard/`, Russian interface (it is for the human; machine-facing files stay English), statuses mapped from the protocol's ledger words. Only sources are committed; `out/` and `versions/` are git-ignored. Local versioning (`snapshot.py`) stays so the dashboard can be changed and rolled back.
 
 Why: it was crystallized on one real project and the entities and flow are the same in every AgentFlow project. `tools/` is for agents; this is for the human, so a separate folder. Rejected: shipping built pages (they are project data, not template).
 

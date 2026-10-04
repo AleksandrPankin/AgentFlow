@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Local versions of the dashboard itself: save, list, roll back.
+"""Версии самого дашборда: сохранить, посмотреть список, откатиться.
 
-  python dashboard/snapshot.py save [name]    keep the current sources and built pages as a new version
-  python dashboard/snapshot.py list           list versions
-  python dashboard/snapshot.py restore vN     put the sources of version vN back (the current state is first saved
-                                              as "before-restore"), then rebuild
+  python dashboard/snapshot.py save [название]    сохранить текущие исходники и страницы как новую версию
+  python dashboard/snapshot.py list               список версий
+  python dashboard/snapshot.py restore vN         вернуть исходники версии vN (текущее состояние перед этим
+                                                  само сохраняется как «before-restore»), затем пересобрать
 
-A version = a copy of the sources (build.py, templates, common.*, filterbar.*) plus the built out/index.html and
-out/graph.html. To look at an old version without rolling back, open dashboard/versions/vN-.../index.html.
-Versions live in dashboard/versions/ and are git-ignored; the sources themselves are committed with the template.
-Save a version before every noticeable change to the dashboard.
+Версия = копия build.py, шаблонов, common.*, filterbar.* + готовые out/index.html и out/graph.html.
+Открыть старую версию, не откатываясь: dashboard/versions/vN-.../index.html и graph.html.
+Версии лежат в dashboard/versions/ и в .gitignore; сами исходники коммитятся вместе с шаблоном.
+Перед каждой заметной правкой дашборда сохраняй версию.
 """
 import re
 import shutil
@@ -46,14 +46,14 @@ def save(name=""):
     for f in PAGES:
         if (OUT / f).exists():
             shutil.copy2(OUT / f, d / f)
-    (d / "NOTE.txt").write_text(name or "(no name)", encoding="utf-8")
-    print("saved:", d.name)
+    (d / "NOTE.txt").write_text(name or "(без названия)", encoding="utf-8")
+    print("сохранено:", d.name)
     return d
 
 
 def lst():
     if not VERS.exists():
-        print("no versions yet")
+        print("версий пока нет")
         return
     for d in sorted(VERS.glob("v*"), key=lambda p: int(re.match(r"v(\d+)", p.name).group(1))):
         note = (d / "NOTE.txt").read_text(encoding="utf-8") if (d / "NOTE.txt").exists() else ""
@@ -63,12 +63,12 @@ def lst():
 def restore(v):
     m = next((d for d in VERS.glob(f"{v}-*") if d.is_dir()), None) or next((d for d in VERS.glob(f"{v}") if d.is_dir()), None)
     if not m:
-        sys.exit(f"version {v} not found; see: snapshot.py list")
+        sys.exit(f"версия {v} не найдена; см. list")
     save("before-restore")
     for f in SOURCES:
         shutil.copy2(m / f, HERE / f)
     subprocess.run([sys.executable, str(HERE / "build.py")], check=True)
-    print("restored from", m.name)
+    print("восстановлено из", m.name)
 
 
 if __name__ == "__main__":

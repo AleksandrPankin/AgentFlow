@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tasks · __PROJECT__</title>
+<title>Задачи __PROJECT__ · Обзор</title>
 <style>
 :root{
   --bg:#f6f7f9;--panel:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--chip:#eef1f6;--accent:#2b5fd9;
@@ -116,22 +116,22 @@ tr.row.sel{background:var(--chip);outline:2px solid var(--accent);outline-offset
 <div class="fbchosen" id="fchosen"></div>
 
 <aside class="side left">
-  <div class="card"><h2>By stage</h2><div class="bars" id="bStage"></div><div class="legend" id="legend"></div></div>
-  <div class="card"><h2>By agent</h2><div class="bars" id="bTool"></div></div>
-  <div class="card"><h2>By role</h2><div class="bars" id="bRole"></div></div>
-  <div class="card"><h2>Done per day (28 days)</h2><div class="days" id="days"></div></div>
+  <div class="card"><h2>По этапам</h2><div class="bars" id="bStage"></div><div class="legend" id="legend"></div></div>
+  <div class="card"><h2>По агентам</h2><div class="bars" id="bTool"></div></div>
+  <div class="card"><h2>По ролям</h2><div class="bars" id="bRole"></div></div>
+  <div class="card"><h2>Принято по дням (28 дней)</h2><div class="days" id="days"></div></div>
 </aside>
 
 <main class="center">
   <div class="kpis" id="kpis"></div>
-  <div class="card" id="attnCard"><h2>Needs attention</h2><div class="attn" id="attn"></div></div>
-  <div class="card" id="tasksCard"><h2>Tasks</h2>
+  <div class="card" id="attnCard"><h2>Требуют внимания</h2><div class="attn" id="attn"></div></div>
+  <div class="card" id="tasksCard"><h2>Задачи</h2>
     <div class="tablewrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
   </div>
 </main>
 
 <aside class="side right">
-  <div class="card" id="detail"><h2>Task</h2><div class="mut">Click a table row or a task under "Needs attention" to see details here.</div></div>
+  <div class="card" id="detail"><h2>Задача</h2><div class="mut">Клик по строке таблицы или по задаче в блоке «Требуют внимания» — подробности здесь.</div></div>
 </aside>
 </div>
 
@@ -140,8 +140,8 @@ tr.row.sel{background:var(--chip);outline:2px solid var(--accent);outline-offset
 /*FILTERBAR_JS*/
 const DATA = __DATA__;
 const P = C.prep(DATA), T = P.tasks, calcAct = C.activeModel(P.pings, 60);
-const ST = {"cancelled":"--s-canc","rejected":"--s-rej","blocked":"--s-block","ready":"--s-ready","in progress":"--s-work","review":"--s-review","done":"--s-done"};
-const cap = s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+const ST = {"Отменена":"--s-canc","Отклонена":"--s-rej","Заблокирована":"--s-block","В очереди":"--s-ready","В работе":"--s-work","На приёмке":"--s-review","Принята":"--s-done"};
+const ORIGINS = ["Владелец","Оркестратор","Тестер","Деплоер"];
 const ST_ORDER = Object.keys(ST);
 const col = s => `var(${ST[s]||'--s-ready'})`;
 const DIMS = C.makeDims(T, t=>t.status);
@@ -153,8 +153,8 @@ const idNum = id=>+id.slice(2);
 function snippet(t,q){ if(!t.bl||!q) return ""; const w=q.toLowerCase().split(/\s+/).filter(Boolean)[0]; if(!w) return ""; const i=t.bl.indexOf(w); if(i<0) return ""; const body=t.body, a=Math.max(0,i-70), b=Math.min(body.length,i+w.length+110); return (a>0?"…":"")+esc(body.slice(a,i))+"<mark>"+esc(body.slice(i,i+w.length))+"</mark>"+esc(body.slice(i+w.length,b))+(b<body.length?"…":""); }
 const baseHay=t=>(t.id+" "+t.title+" "+t.notes+" "+t.commit+" "+t.goal).toLowerCase();
 const bodyOnly=t=>qBody&&query&&!query.split(/\s+/).every(w=>baseHay(t).includes(w));
-function sizeShort(t){ const z=t.size; if(!z) return "no worker commits"; return t.sizeCls==="docs"?`docs only +${z.add} −${z.del}`:`${t.sizeCls} · code +${z.codeAdd} −${z.codeDel}`; }
-function sizeFull(t){ const z=t.size; if(!z) return '<span class="mut">'+(["rejected","cancelled"].includes(t.status)&&t.role==="developer"?"branch deleted after "+t.status+" — size unrecoverable":"no worker commits ([T-NNN] in subject): testers, deployments and docs-only work")+'</span>'; return `<b>${esc(t.sizeCls)}</b> · code: +${z.codeAdd} −${z.codeDel}, ${z.codeFiles} file(s)<br><span class="mut">with docs: +${z.add} −${z.del}, ${z.files} file(s) · commits: ${z.commits}<br>S &lt; 50, M &lt; 300, L &lt; 1000, XL ≥ 1000 code lines</span>`; }
+function sizeShort(t){ const z=t.size; if(!z) return "нет коммитов исполнителя"; return t.sizeCls==="док."?`только документы +${z.add} −${z.del}`:`${t.sizeCls} · код +${z.codeAdd} −${z.codeDel}`; }
+function sizeFull(t){ const z=t.size; if(!z) return '<span class="mut">'+(["Отклонена","Отменена"].includes(t.status)&&t.role==="Разработчик"?"ветка удалена после "+(t.status==="Отменена"?"отмены":"отклонения")+" — объём не восстановить":"нет коммитов исполнителя ([T-NNN] в теме): тестеры, выкладки и документы без кода")+'</span>'; return `<b>${esc(t.sizeCls)}</b> · код: +${z.codeAdd} −${z.codeDel}, ${z.codeFiles} файл(ов)<br><span class="mut">с документами: +${z.add} −${z.del}, ${z.files} файл(ов) · коммитов: ${z.commits}<br>S &lt; 50, M &lt; 300, L &lt; 1000, XL ≥ 1000 строк кода</span>`; }
 
 
 function pass(t, skip){
@@ -169,10 +169,10 @@ function uniq(k){ return DIMS.find(d=>d.k===k).vals(); }
 function renderKpis(){
   const f=filtered();
   const cnt=s=>f.filter(t=>t.status===s).length;
-  const k=[["Total",f.length,"--line",null]];
-  ST_ORDER.forEach(s=>k.push([cap(s),cnt(s),ST[s],s]));
-  k.push(["Waiting for human",f.filter(t=>t.waitsOwner).length,"--s-block","owner"]);
-  k.push(["Waiting for another task",f.filter(t=>t.blockedBy.length&&!t.final).length,"--s-ready","blocked"]);
+  const k=[["Всего",f.length,"--line",null]];
+  ST_ORDER.forEach(s=>k.push([s,cnt(s),ST[s],s]));
+  k.push(["Ждут владельца",f.filter(t=>t.waitsOwner).length,"--s-block","owner"]);
+  k.push(["Ждут другую задачу",f.filter(t=>t.blockedBy.length&&!t.final).length,"--s-ready","blocked"]);
   $("kpis").innerHTML=k.map(([n,v,c,key])=>{
     const on = key && (key==="owner"?flags.owner:key==="blocked"?flags.blocked:sel.status.has(key));
     return `<button class="kpi${on?" on":""}" style="--c:var(${c})" data-key="${key||""}"><b>${v}</b><span>${n}</span></button>`;}).join("");
@@ -189,10 +189,10 @@ function toggle(k,v){ const s=sel[k]; if(s.has(v)) s.delete(v); else s.add(v); }
 const fb=createFilterBar({
   bar:$("fbar"), chosen:$("fchosen"), sel,
   dims:DIMS.map(d=>({k:d.k,l:d.l,vals:()=>uniq(d.k),count:v=>T.filter(t=>d.get(t).includes(v)&&pass(t,d.k)).length})),
-  flags:[{k:"owner",l:"Waits for human",get:()=>flags.owner,set:v=>{flags.owner=v;}},{k:"blocked",l:"Waits for another task",get:()=>flags.blocked,set:v=>{flags.blocked=v;}}],
-  search:{placeholder:"Search: ID, title, notes, commit…",get:()=>query,set:v=>{query=v.trim().toLowerCase();}},
+  flags:[{k:"owner",l:"Ждёт владельца",get:()=>flags.owner,set:v=>{flags.owner=v;}},{k:"blocked",l:"Ждёт другую задачу",get:()=>flags.blocked,set:v=>{flags.blocked=v;}}],
+  search:{placeholder:"Поиск: номер, название, заметки, коммит…",get:()=>query,set:v=>{query=v.trim().toLowerCase();}},
   body:{get:()=>qBody,set:v=>{qBody=v;}},
-  shown:()=>`Showing ${filtered().length} of ${T.length}`,
+  shown:()=>`Показано ${filtered().length} из ${T.length}`,
   clear:()=>{DIMS.forEach(d=>sel[d.k].clear()); flags.owner=false; flags.blocked=false; query="";},
   onChange:()=>render()
 });
@@ -202,9 +202,9 @@ function stacked(el,key){
   const max=Math.max(1,...vals.map(v=>f.filter(t=>t[key]===v).length));
   el.innerHTML=vals.map(v=>{
     const rows=f.filter(t=>t[key]===v); if(!rows.length) return "";
-    const segs=ST_ORDER.map(s=>{const n=rows.filter(t=>t.status===s).length; return n?`<div class="seg" title="${esc(v)} · ${cap(s)}: ${n}" data-k="${key}" data-v="${esc(v)}" data-s="${s}" style="width:${n/max*100}%;background:${col(s)}"></div>`:"";}).join("");
+    const segs=ST_ORDER.map(s=>{const n=rows.filter(t=>t.status===s).length; return n?`<div class="seg" title="${esc(v)} · ${s}: ${n}" data-k="${key}" data-v="${esc(v)}" data-s="${s}" style="width:${n/max*100}%;background:${col(s)}"></div>`:"";}).join("");
     return `<div class="bar"><span class="name" title="${esc(v)}">${esc(v)}</span><div class="track">${segs}</div><span class="n">${rows.length}</span></div>`;
-  }).join("")||`<div class="empty">No data</div>`;
+  }).join("")||`<div class="empty">Нет данных</div>`;
   el.querySelectorAll(".seg").forEach(s=>s.onclick=()=>{
     sel[s.dataset.k].clear(); sel[s.dataset.k].add(s.dataset.v);
     sel.status.clear(); sel.status.add(s.dataset.s); render();
@@ -212,7 +212,7 @@ function stacked(el,key){
 }
 
 function renderDays(){
-  const f=filtered().filter(t=>t.status==="done" && t.updated);
+  const f=filtered().filter(t=>t.status==="Принята" && t.updated);
   const today=new Date(DATA.generated.slice(0,10)+"T12:00:00"); const days=[];
   for(let i=27;i>=0;i--){ const d=new Date(today); d.setDate(d.getDate()-i); days.push(d.toISOString().slice(0,10)); }
   const c=Object.fromEntries(days.map(d=>[d,0])); f.forEach(t=>{ if(t.updated in c) c[t.updated]++; });
@@ -221,30 +221,30 @@ function renderDays(){
 }
 
 function renderAttn(){
-  const f=filtered().filter(t=>!t.final && (t.status==="blocked"||t.status==="review"||t.waitsOwner||t.blockedBy.length));
+  const f=filtered().filter(t=>!t.final && (t.status==="Заблокирована"||t.status==="На приёмке"||t.waitsOwner||t.blockedBy.length));
   f.sort((a,b)=>idNum(b.id)-idNum(a.id));
   $("attn").innerHTML=f.map(t=>{
-    const why=[cap(t.status), t.waitsOwner?"waits for human":"", t.blockedBy.length?"waits for "+t.blockedBy.join(", "):""].filter(Boolean).join(" · ");
-    return `<a data-id="${t.id}"><span class="dot" style="background:${col(t.status)}"></span><span><b>${t.id}</b> ${esc(t.title)} <span class="mut">— ${esc(why)}</span></span></a>`;}).join("")||`<div class="empty">Nothing pending</div>`;
+    const why=[t.status, t.waitsOwner?"ждёт владельца":"", t.blockedBy.length?"ждёт "+t.blockedBy.join(", "):""].filter(Boolean).join(" · ");
+    return `<a data-id="${t.id}"><span class="dot" style="background:${col(t.status)}"></span><span><b>${t.id}</b> ${esc(t.title)} <span class="mut">— ${esc(why)}</span></span></a>`;}).join("")||`<div class="empty">Ничего не висит</div>`;
   document.querySelectorAll("#attn a").forEach(a=>a.onclick=()=>select(a.dataset.id));
 }
 
-const COLS=[["id","ID"],["title","Title"],["stage","Stage"],["role","Role"],["origin","Set by"],["tool","Agent"],["status","Status"],["result","Worker outcome"],["check","Independent check"],["sizeN","Changes"],["updated","Updated"]];
+const COLS=[["id","ID"],["title","Название"],["stage","Этап"],["role","Роль"],["origin","Поставил"],["tool","Агент"],["status","Статус"],["result","Исход выполнения"],["check","Независимая проверка"],["sizeN","Изменения"],["updated","Обновлено"]];
 function renderTable(){
   $("thead").innerHTML="<tr>"+COLS.map(([k,l])=>`<th data-k="${k}" class="${sortKey===k?"sorted"+(sortAsc?" asc":""):""}">${l}</th>`).join("")+"</tr>";
   document.querySelectorAll("#thead th").forEach(th=>th.onclick=()=>{ if(sortKey===th.dataset.k) sortAsc=!sortAsc; else {sortKey=th.dataset.k; sortAsc=true;} renderTable(); });
   const f=filtered().sort((a,b)=>{
     let x=a[sortKey],y=b[sortKey]; if(sortKey==="id"){x=idNum(a.id);y=idNum(b.id);}
     if(sortKey==="status"){x=ST_ORDER.indexOf(a.status);y=ST_ORDER.indexOf(b.status);}
-    const r= typeof x==="number"? x-y : String(x).localeCompare(String(y),undefined,{numeric:true});
+    const r= typeof x==="number"? x-y : String(x).localeCompare(String(y),"ru",{numeric:true});
     return sortAsc?r:-r;});
   $("tbody").innerHTML=f.map(t=>{
     return `<tr class="row${selId===t.id?" sel":""}" data-id="${t.id}"><td><b>${t.id}</b></td>
-      <td>${esc(t.title)}${bodyOnly(t)?'<span class="flag">🔎 in body</span>':""}${t.waitsOwner?'<span class="flag">⚑ human</span>':""}${t.blockedBy.length&&!t.final?`<span class="flag">⏳ ${t.blockedBy.join(", ")}</span>`:""}</td>
+      <td>${esc(t.title)}${bodyOnly(t)?'<span class="flag">🔎 в тексте</span>':""}${t.waitsOwner?'<span class="flag">⚑ владелец</span>':""}${t.blockedBy.length&&!t.final?`<span class="flag">⏳ ${t.blockedBy.join(", ")}</span>`:""}</td>
       <td>${esc(t.stage)}</td><td>${esc(t.role)}</td><td>${esc(t.origin)}</td><td>${esc(t.tool)}</td>
-      <td><span class="tag" style="background:${col(t.status)}">${esc(cap(t.status))}</span></td>
-      <td class="pill">${esc(t.result)}</td><td class="pill">${esc(t.check)}</td><td class="pill" title="${esc(sizeShort(t))}">${t.size?(t.sizeCls==="docs"?"docs":`<b>${esc(t.sizeCls)}</b> +${t.size.codeAdd} −${t.size.codeDel}`):"—"}</td><td class="pill">${esc(t.updated)}</td></tr>`;
-  }).join("")||`<tr><td colspan="11" class="empty">Nothing found</td></tr>`;
+      <td><span class="tag" style="background:${col(t.status)}">${t.status}</span></td>
+      <td class="pill">${esc(t.result)}</td><td class="pill">${esc(t.check)}</td><td class="pill" title="${esc(sizeShort(t))}">${t.size?(t.sizeCls==="док."?"док.":`<b>${esc(t.sizeCls)}</b> +${t.size.codeAdd} −${t.size.codeDel}`):"—"}</td><td class="pill">${esc(t.updated)}</td></tr>`;
+  }).join("")||`<tr><td colspan="11" class="empty">Ничего не найдено</td></tr>`;
   document.querySelectorAll("tr.row").forEach(r=>r.onclick=()=>select(r.dataset.id));
 }
 
@@ -261,7 +261,7 @@ function renderDetail(){
 function render(){
   renderKpis(); fb.render();
   stacked($("bStage"),"stage"); stacked($("bTool"),"tool"); stacked($("bRole"),"role");
-  $("legend").innerHTML=ST_ORDER.map(s=>`<span><i style="background:${col(s)}"></i>${cap(s)}</span>`).join("");
+  $("legend").innerHTML=ST_ORDER.map(s=>`<span><i style="background:${col(s)}"></i>${s}</span>`).join("");
   renderDays(); renderAttn(); renderTable();
 }
 

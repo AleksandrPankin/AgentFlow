@@ -1,4 +1,4 @@
-/* ===== Shared base for both pages: tokens, layout, header, task card ===== */
+/* ===== Общая основа для обеих страниц: токены, раскладка, шапка, карточка задачи ===== */
 :root{
   --bg:#f6f7f9;--panel:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--chip:#eef1f6;--accent:#2b5fd9;--band:#eceff4;
   --s-done:#2e9e6b;--s-review:#7a5fd0;--s-work:#2b7de0;--s-ready:#98a2b3;--s-block:#e08a1e;--s-rej:#d6453d;--s-canc:#c4c9d4;--pred:#c026d3;
@@ -14,13 +14,13 @@
   --s-done:#2e9e6b;--s-review:#7a5fd0;--s-work:#2b7de0;--s-ready:#98a2b3;--s-block:#e08a1e;--s-rej:#d6453d;--s-canc:#c4c9d4;--pred:#c026d3;}
 *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 body{margin:0;height:100vh;overflow:hidden;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-/* same grid on both pages: header / filters / chosen / three columns */
+/* одинаковая сетка на обеих страницах: шапка / фильтры / выбранное / три колонки */
 .app{height:100vh;display:grid;grid-template-columns:minmax(270px,19vw) minmax(0,1fr) minmax(300px,22vw);grid-template-rows:auto auto 26px minmax(0,1fr);gap:12px;padding:12px}
 .fbchosen{height:26px;overflow:hidden;margin:-4px 0 0!important;padding:0 4px}
 .fb-chosen{flex-wrap:nowrap!important;white-space:nowrap}
 @media (max-width:1100px){body{height:auto;overflow:auto}.app{height:auto;display:block}}
 
-/* header */
+/* шапка */
 .topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;min-height:40px;margin:0!important}
 .topbar h1{font-size:20px;margin:0;white-space:nowrap}
 .nav{display:inline-flex;background:var(--chip);border-radius:10px;padding:3px;gap:2px}
@@ -33,7 +33,7 @@ body{margin:0;height:100vh;overflow:hidden;background:var(--bg);color:var(--ink)
 .iconbtn:hover{border-color:var(--accent)}
 .iconbtn svg{width:18px;height:18px}
 
-/* task card (one for both pages) */
+/* карточка задачи (одна на обе страницы) */
 .tcard{font-size:13.5px}
 .tcard h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tcard dl{margin:0;display:grid;grid-template-columns:118px minmax(0,1fr);gap:0 14px}
@@ -49,7 +49,7 @@ details.fold summary{cursor:pointer;color:var(--accent);font-size:13px}
 .tcard code{background:var(--chip);border-radius:5px;padding:0 5px;font-size:12.5px}
 .tcard mark{background:rgba(255,200,0,.4);color:inherit;border-radius:2px;padding:0 1px}
 
-/* same look of cards and filter panel on both pages */
+/* одинаковый вид карточек и панели фильтров на обеих страницах */
 .card,.pn{border-radius:12px}
 .fbcard{background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:12px!important;padding:10px 12px!important;margin:0!important}
 

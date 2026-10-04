@@ -1,118 +1,116 @@
-# Rules for building human-facing interfaces over AgentFlow data
+# Правила разработки интерфейсов (из опыта дашборда AgentFlow)
 
-Scope: any dashboard or viewer that shows AgentFlow data (ledger, Task Files, git history) to a human. The reference implementation is the template's `dashboard/` (sources: `build.py`, `template.html`, `graph_template.html`, `common.js/css`, `filterbar.js/css`, `snapshot.py`; output `dashboard/out/`, versions `dashboard/versions/`). Section A: process and methods the human asked for. Section B: practices that proved themselves. Section C: how to apply this to a new interface.
-
----
-
-## A. Requirements and methods
-
-### A1. Process
-1. **Discuss and assess feasibility first, do nothing yet.** For big ideas (graph, Gantt, timelines) first answer "can it be done", then build.
-2. **Clickable mock-up before the real port.** Show layout options as a clickable mock-up, let the human choose, then implement.
-3. **Version before changing.** Before every notable edit take a snapshot (`snapshot.py save`); roll back with one command (`restore vN`).
-4. **Collect feedback as a list and assess it before editing.** When the human gives many remarks, consolidate them, assess, reply, then act.
-5. **Do not break the process or the data.** The dashboard only reads the ledger, Task Files and git. Statuses, acceptance rules and templates are not changed for looks.
-6. **Dashboard sources are template-owned and committed.** Only `out/` and `versions/` are git-ignored.
-7. **Decide within your authority.** If the human said "do it your way, I will look", do not ask. Ask only when the decision is the human's.
-8. **Interface language follows the project memory's language** (English by default for AgentFlow). The vocabulary of statuses, roles and outcomes comes from `docs/ai-handoff-protocol.md`, never invented.
-
-### A2. Data and honesty
-9. **Never invent a value.** No data means empty or "not set", not a guess. Mark estimated fields with the word "estimate" ("Set by: ... (estimate)").
-10. **Do not mix different things under one word.** Ledger status, worker outcome (the worker's report) and the independent check verdict are three different lines with three different names. "Completed by worker" is not "done".
-11. **Show the source.** Next to a normalized value show the raw report line; for commits, a caption saying where it came from and what it does not mean.
-12. **Full text as is, no paraphrase.** No auto-summary, no LLM compression, no bold highlighting. Short form is a heading, full form is an expandable block with the original text.
-13. **Do not show empty blocks** (no text, no block). Exception: "Status history" is always expanded.
-14. **Do not guess ambiguous values.** A worker's commit is taken only from an explicit `Commit:` / `Change:` line and only if there is exactly one hash; otherwise empty.
-
-### A3. Layout and screen
-15. **Use the whole screen.** Side blocks do not scroll, they fit; only one central block scrolls (table, Gantt).
-16. **Same column widths on all pages**, the same grid: header / filters / chosen / three columns.
-17. **No horizontal scroll**, including 4K and narrow screens (extra columns are hidden by width).
-18. **Page scale does not jump.** Moving between pages does not change element sizes or the header position at 100%.
-19. **No extra scrollbars.** Long fields are expandable, with a bounded height inside.
-20. **Identical headers:** `Tasks · <project>`, an "Overview / Gantt and timeline" switch, "Built ..." at top right, theme as an icon (sun / moon), not a word.
-21. **Remove what is rarely needed** (for example the legend on the timeline tab) unless it is required for understanding.
-
-### A4. Filters
-22. **One set of filters on all pages, all of them working.** Remove a filter only if choosing it does nothing on that page.
-23. **Maximum slice.** Filters on every axis: status, who set the task, stage, role, agent, outcome, independent check, size, links, creation and closing dates.
-24. **Reset per filter and "Reset all".** The chosen values show as chips on a separate row; the "Showing N of M" counter comes first.
-25. **A count next to every value** (how many tasks the choice gives). Zero values are dimmed but selectable.
-26. **Search by number, title and notes, plus an option "in task text"**; matches inside the text are shown as a fragment in the card.
-27. **Filters do not twitch.** The appearance and disappearance of ": N" does not move neighbours (space is reserved up front).
-28. **Same height and look** of the filter panel on all pages.
-
-### A5. Task card
-29. **One card for all pages** (a shared component), one data source.
-30. **Links between tasks are clickable** and work on all pages (jump, highlight).
-31. **Long fields are expandable** (Goal, Result, Notes); everything else is shown in full.
-32. **Separate agent and role** (the same session may act as deployer while Codex or Claude did the work).
-
-### A6. Time, graph, links
-33. **Real physical time.** Offer an option "without pauses between agent sessions" (a threshold activity model over git traces).
-34. **Timeline units** (hours / days / weeks / months), as in MS Project, separate from zoom. Show how development sped up.
-35. **Gantt order is by completeness:** cancelled on the left ... done on the right; grouping by stage by default, switchable.
-36. **Links of different kinds** (depends, replacement-successor, check) use different styles, and **one legend serves the Gantt and the board** (one style table).
-37. **Do not dim links without a reason**; background links are enabled by a separate setting and highlight on hover / click. Link settings are shared by the Gantt and the board; grouping and zoom are Gantt only.
-38. **Layers:** background lines go under cards and do not cover them; highlighted ones go on top.
-39. **Show "how large the change is"** per task (change size from git) and "depends on a rejected / cancelled task" (a toggle).
-40. **A sticky right panel next to the Gantt:** the selected task's description stays visible without leaving the chart.
+Источник: все запросы владельца по дашборду `dashboard/` и то, как он реализован (`build.py`, `template.html`, `graph_template.html`, `common.js/css`, `filterbar.js/css`, `snapshot.py`). Раздел А — то, что озвучил владелец. Раздел Б — практики, которые выработались в работе. Раздел В — как применять к новому интерфейсу.
 
 ---
 
-## B. Best practices
+## А. Требования и методики владельца
 
-### B1. Architecture
-1. **One data source shared by the pages.** One JSON payload is embedded in all pages; the pages differ only in presentation.
-2. **A shared layer in separate files:** `common.css` (tokens, grid, header, card), `common.js` (namespace `C`: constants, `prep`, `makeDims`, `matchDims`, `taskCard`, `initHeader`), `filterbar.js/css`. A page template only includes them and draws its own part. Duplicated logic between pages is a bug.
-3. **Build into one self-contained HTML** with no server: `build.py` substitutes markers (`__DATA__`, `/*COMMON_JS*/`, etc.). Python stdlib only.
-4. **One style/vocabulary table for everything:** `EDGE_STYLE`, `ST`, the result-label map; swatches in the legend, on the Gantt and on the board are taken from it.
-5. **Filter dimensions are described once** (`makeDims`); every screen builds filters and matches from them. Check: the numbers for each filter match on all pages.
+### А1. Процесс работы
+1. **Сначала обсудить и оценить осуществимость, ничего не делая.** Для крупных идей (граф, Гант, сроки) — сначала оценка «можно ли», потом реализация.
+2. **Прототип-макет раньше переноса.** Варианты раскладки показываются кликабельным макетом, владелец выбирает, потом реализация.
+3. **Версионирование перед изменениями.** «Сохраним предыдущую версию»: перед каждой заметной правкой снимок (`snapshot.py save`), откат одной командой (`restore vN`).
+4. **Собирать обратную связь списком и оценивать до правки.** Когда владелец даёт много замечаний, сначала свести их, оценить, ответить, затем делать.
+5. **Не ломать процесс и данные.** Дашборд только читает реестр, Task File и git. Статусы, правила приёмки, шаблоны не меняются ради красоты.
+6. **Исходники дашборда входят в шаблон и коммитятся**; в `.gitignore` только `dashboard/out/` (готовые страницы) и `dashboard/versions/` (локальные версии). Интерфейс русский; слова статусов, ролей и исходов берутся из `docs/ai-handoff-protocol.md`, не выдумываются.
+7. **Решать самому в рамках полномочий.** Владелец сказал «делай по своему пониманию, я посмотрю». Вопрос — только если решение его.
 
-### B2. Data
-6. **The source of truth is project files and git**, not manual edits. Statuses over time come from replaying history (`git log --reverse`, `git show hash:file`).
-7. **Normalization plus the original.** A map "raw -> label" plus the raw string kept alongside. Compare on raw values (lowercase ledger words), capitalise only for display.
-8. **Strip service text:** HTML comments from templates are removed before display.
-9. **Extraction rules are strict and explainable:** anchor on a label (`Commit:`), a single value, a regex check. "Undetermined" cases are listed and shown honestly.
-10. **Test on real edge-case tasks**, not only typical ones: empty report, rejected, several hashes, replacement, a rework chain.
+### А2. Данные и честность
+8. **Не выдумывать значение.** Нет данных — пусто или «не задано», а не догадка. Оценочные поля помечать словом «оценка» («Поставил — … (оценка)»).
+9. **Не смешивать разные сущности под одним словом.** Статус в реестре, исход выполнения (отчёт исполнителя) и вердикт независимой проверки — три разные строки с разными названиями. «Завершено исполнителем» ≠ «принято».
+10. **Показывать источник.** Рядом с нормализованным значением — исходная строка отчёта; для коммитов подпись, откуда он взят и что он не означает.
+11. **Полный текст — как есть, без пересказа.** Никакой автосводки, LLM-сжатия, жирных выделений. Краткое — заголовок, полное — раскрываемый блок с исходным текстом.
+12. **Пустые блоки не показывать** (нет текста — нет блока). Исключение: «История статусов» всегда раскрыта.
+13. **Неоднозначное не угадывать.** Коммит исполнителя берётся только из явной строки `Commit:`/`Change:` и только если хеш один; иначе пусто.
 
-### B3. Layout and UX
-11. **Colour tokens on `:root`, dark and light themes** (`prefers-color-scheme` plus an explicit `data-theme`); the toggle is saved in `localStorage`.
-12. **A fixed `.app` grid per screen** (`100vh`, rows `auto auto 26px 1fr`), exactly one container scrolls; a narrow screen falls back to normal flow.
-13. **Reserve space for what appears.** Dynamic counters, badges and "Chosen" rows have a reserved size; mark the selected item with colour and a border, not bold (bold changes width).
-14. **Align the heights of related blocks** on all pages (search field, filter panel); verify with a screenshot.
-15. **Dropdowns:** close on outside click via `composedPath().includes(bar)`; a re-render must not detach the target element.
-16. **Do not overwrite classes** with `className=`; use `classList.add`.
-17. **SVG layers:** background under cards; highlights are cloned into the top layers (`hlclone`), not recoloured in place.
-18. **Compact left panel:** shrink plus a thin scrollbar instead of overflow; narrow screens hide columns instead of collapsing everything.
-19. **Labels use the project's domain language** ("Outcome", "Independent check"), not implementation terms, and match the protocol vocabulary.
+### А3. Компоновка и экран
+14. **Использовать весь экран.** Боковые блоки не прокручиваются, а вмещаются; прокручивается только один центральный блок (таблица, Гант).
+15. **Колонки одной ширины на разных страницах**, одинаковая сетка: шапка / фильтры / выбранное / три колонки.
+16. **Без горизонтального скролла**, в том числе на 4K и на узких экранах (лишние колонки скрываются по ширине).
+17. **Масштаб страницы не прыгает.** Переход между страницами не меняет размер элементов и положение шапки при 100%.
+18. **Никаких лишних полос прокрутки.** Длинные поля — раскрывающиеся, внутри ограниченная высота.
+19. **Одинаковые шапки:** название «Задачи <проект>» (имя проекта = имя папки), переключатель «Обзор / Гант и сроки», «Собрано …» справа сверху, тема значком ☀/🌙 (не словом).
+20. **Редко нужное убирать** (легенда на вкладке «Сроки»), если не нужно для понимания.
 
-### B4. Verification and change safety
-20. **Snapshot before and after** (`snapshot.py save|list|restore`), including sources and built pages.
-21. **Check in a real browser** (playwright on a temporary `http.server`; `file://` is blocked): filters, page transitions, expanding blocks, links, a clean console, no horizontal scroll at 1920x1080 and other sizes.
-22. **Regression by counters:** every filter gives the same numbers on all pages.
-23. **Remove screenshots and the test server** after checking.
-24. **Complex edits as a patch script** (`rep(old, new)` with `assert`), not long shell heredocs: it fails loudly if the anchor is gone.
-25. **Hidden characters:** after escaping a regex in a patch, check the file for control characters (a \x08 once appeared instead of `\b`).
-26. **Final reply to the human is short:** what changed, where each disputed field comes from, which cases are intentionally empty, how to roll back.
+### А4. Фильтры
+21. **Один набор фильтров на обеих страницах, все работают.** Убирать фильтр только если его выбор ни к чему не приводит на этой странице.
+22. **Максимальный срез.** Фильтры по всем осям: статус, кто поставил, этап, роль, агент, исход, проверка, размер, связи, даты создания/закрытия.
+23. **Сброс по каждому фильтру и «Сбросить все».** Выбранное видно чипами в отдельной строке, счётчик «Показано N из M» — первым.
+24. **Счётчик у каждого значения** (сколько задач даст выбор). Нулевые — приглушены, но выбираемы.
+25. **Поиск по номеру/названию/заметкам плюс опция «в тексте задачи»**; найденное в тексте показывать фрагментом в карточке.
+26. **Фильтры не дёргаются.** Появление и исчезновение «: N» не двигает соседей (место резервируется заранее).
+27. **Одинаковая высота и вид** панели фильтров на обеих страницах.
+
+### А5. Карточка задачи
+28. **Одна карточка на обе страницы** (общий компонент), одни данные.
+29. **Ссылки между задачами кликабельны** и работают на обеих страницах (переход, подсветка).
+30. **Длинные поля раскрываются** (Goal, Result, Notes); остальное показывается целиком.
+31. **Исполнителя разделять на агент и роль** (одна и та же сессия может быть деплоером, а работал Codex или Claude).
+
+### А6. Время, граф, связи
+32. **Реальное физическое время.** Опция «без пауз между сессиями агентов» (пороговая модель активности по git-пингам). Режим без пауз владелец одобрил.
+33. **Единицы шкалы времени** (часы/дни/недели/месяцы), как в MS Project, отдельно от масштаба. Показывать, как разработка ускорялась.
+34. **Порядок на Ганте — по завершённости**: отменена слева … принята справа; группировка по этапу по умолчанию, переключаемая.
+35. **Связи разных видов** (зависит, замена-преемник, проверка) — разными стилями, **условное обозначение одно для Ганта и доски** (одна таблица стилей).
+36. **Связи не гасить без причины**; фоновые связи включаются отдельным параметром, при наведении/клике подсвечиваются. Настройки связей общие для Ганта и доски; группировка и масштаб — только Гант.
+37. **Слои:** фоновые линии под карточками и не перекрывают их; подсвеченные — поверх.
+38. **Показывать «насколько велика правка»** по задаче (размер изменений из git) и «зависит от отклонённой/отменённой» (переключатель).
+39. **Правая панель рядом с Гантом, липкая:** описание выбранной задачи видно, не уходя с графика.
 
 ---
 
-## C. Checklist for a new interface (before starting and before handing over)
+## Б. Лучшие практики (выработаны в работе)
 
-Before starting
-- [ ] One data source? One description of dimensions and vocabularies? Shared layer extracted?
-- [ ] Layout options shown to the human, if the layout is new?
-- [ ] Version saved before changes?
-- [ ] Which entities are easy to confuse? Each gets its own line and its own name.
-- [ ] Interface language matches the project memory; status, role and outcome words come from `docs/ai-handoff-protocol.md`.
+### Б1. Архитектура
+1. **Единый источник данных, общий для страниц.** Один JSON-payload встраивается в обе страницы; страницы различаются только отображением.
+2. **Общий слой в отдельных файлах:** `common.css` (токены, сетка, шапка, карточка), `common.js` (пространство `C`: константы, `prep`, `makeDims`, `matchDims`, `taskCard`, `initHeader`), `filterbar.js/css`. Страница-шаблон только подключает и рисует своё. Дубль логики между страницами — ошибка.
+3. **Сборка в один самодостаточный HTML** без сервера: `build.py` подставляет маркеры (`__DATA__`, `/*COMMON_JS*/` и т. п.). Python — только stdlib.
+4. **Одна таблица стилей/словарей на всё:** `EDGE_STYLE`, `ST`, `RESULT_RU` — образцы в легенде, на Ганте и на доске берутся из неё.
+5. **Измерения фильтров описаны один раз** (`makeDims`), оба экрана строят фильтры и совпадения из них. Проверка: числа для каждого фильтра на обеих страницах совпадают.
 
-Before handing over
-- [ ] No invented values; estimates marked; source visible.
-- [ ] Empty not shown, ambiguous not guessed.
-- [ ] One filter set, all working, reset per filter and global, counts present.
-- [ ] No jumps on state change (counters, chips, page transitions).
-- [ ] No horizontal scroll at 4K, 1920 and a narrow screen; no extra scrollbars.
-- [ ] Same header, grid, theme and "Built" stamp on all pages.
-- [ ] Checked in a browser, console clean, numbers match across pages.
-- [ ] Snapshot taken after; temporary files removed; short report to the human.
+### Б2. Данные
+6. **Источник истины — файлы проекта и git**, не ручные правки. Статусы по времени — проигрыванием истории (`git log --reverse`, `git show hash:file`).
+7. **Нормализация + исходник.** Словарь «сырое → русская метка» плюс сохранённая сырая строка рядом.
+8. **Очистка служебного:** HTML-комментарии шаблонов вырезать до показа.
+9. **Правила извлечения — строгие и объяснимые:** якорь по метке (`Commit:`), единственность значения, проверка регулярным выражением. Случаи «не определено» перечислены и показаны честно.
+10. **Проверять на реальных крайних задачах**, не только на типичных: пустой отчёт, отклонена, несколько хешей, замена, цепочка.
+
+### Б3. Вёрстка и UX
+11. **Токены цвета на `:root`, тёмная/светлая темы** (`prefers-color-scheme` плюс явный `data-theme`), переключатель сохраняется в `localStorage`.
+12. **Фиксированная сетка `.app` на экран** (`100vh`, строки `auto auto 26px 1fr`), прокручивается ровно один контейнер; узкий экран — обычный поток.
+13. **Резервировать место под появляющееся.** Динамические счётчики, значки, строки «Выбрано» имеют зарезервированный размер; выделение выбранного — цветом и рамкой, не жирностью (жирный меняет ширину).
+14. **Высоты связанных блоков выравнивать** на всех страницах (поле поиска, панель фильтров), проверять скриншотом.
+15. **Выпадающие списки:** закрывать по клику вне через `composedPath().includes(bar)`; перерисовка не должна отрывать целевой элемент.
+16. **Не затирать классы** присваиванием `className=` — `classList.add`.
+17. **Слои SVG:** фон под карточками, подсветка клонируется в верхние слои (`hlclone`), а не перекрашивается на месте.
+18. **Компактная левая панель:** сжатие + тонкий скролл вместо переполнения; узкие экраны скрывают колонки, а не сворачивают всё.
+19. **Подписи — предметным языком владельца** («Исход выполнения», «Независимая проверка»), а не терминами реализации.
+
+### Б4. Проверка и безопасность изменений
+20. **Снимок версии до и после** (`snapshot.py save|list|restore`), включая исходники и собранные страницы.
+21. **Проверка в настоящем браузере** (playwright на временном `http.server`; `file://` блокируется): фильтры, переходы между страницами, раскрытие блоков, ссылки, консоль без ошибок, отсутствие горизонтального скролла на 1920×1080 и других размерах.
+22. **Регрессия по счётчикам:** все фильтры на обеих страницах дают одинаковые числа.
+23. **Скриншоты и тестовый сервер убирать** после проверки.
+24. **Сложные правки — патч-скриптом** (`rep(старое, новое)` с `assert`), а не длинными heredoc в shell: падает громко, если якорь пропал.
+25. **Скрытые символы:** после экранирования regex в патче проверять файл на управляющие символы (был \x08 вместо `\b`).
+26. **Итоговый ответ владельцу кратко:** что изменилось, откуда берётся каждое спорное поле, какие случаи намеренно без значения, как откатить.
+
+---
+
+## В. Чек-лист для нового интерфейса (перед стартом и перед сдачей)
+
+Перед стартом
+- [ ] Один источник данных? Одно описание измерений/словарей? Общий слой вынесен?
+- [ ] Макет-варианты показаны владельцу, если раскладка новая?
+- [ ] Сохранена версия до правок?
+- [ ] Какие сущности легко спутать? Каждая — своя строка и своё название.
+
+Перед сдачей
+- [ ] Нет выдуманных значений; оценочное помечено; источник виден.
+- [ ] Пустое не показано, неоднозначное не угадано.
+- [ ] Один набор фильтров, все работают, сброс по каждому и общий, счётчики есть.
+- [ ] Нет прыжков при смене состояния (счётчики, чипы, переходы между страницами).
+- [ ] Без горизонтального скролла на 4K, 1920, узком экране; лишних полос прокрутки нет.
+- [ ] Одинаковые шапка, сетка, тема, «Собрано» на всех страницах.
+- [ ] Проверено в браузере, консоль чистая, числа на страницах совпадают.
+- [ ] Снимок версии после; временные файлы убраны; отчёт владельцу кратко.
