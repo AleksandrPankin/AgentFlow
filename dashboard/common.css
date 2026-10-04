@@ -1,0 +1,56 @@
+/* ===== Shared base for both pages: tokens, layout, header, task card ===== */
+:root{
+  --bg:#f6f7f9;--panel:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--chip:#eef1f6;--accent:#2b5fd9;--band:#eceff4;
+  --s-done:#2e9e6b;--s-review:#7a5fd0;--s-work:#2b7de0;--s-ready:#98a2b3;--s-block:#e08a1e;--s-rej:#d6453d;--s-canc:#c4c9d4;--pred:#c026d3;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#12151c;--panel:#1b2029;--ink:#e6e9f0;--mut:#98a2b3;--line:#2a3140;--chip:#252c3a;--accent:#7aa2ff;--band:#222836;
+  --s-done:#3fbf86;--s-review:#9b86e6;--s-work:#5aa0f5;--s-ready:#7b8598;--s-block:#f0a03a;--s-rej:#ef6a62;--s-canc:#4a5266;--pred:#e879f9;}}
+:root[data-theme=dark]{
+  --bg:#12151c;--panel:#1b2029;--ink:#e6e9f0;--mut:#98a2b3;--line:#2a3140;--chip:#252c3a;--accent:#7aa2ff;--band:#222836;
+  --s-done:#3fbf86;--s-review:#9b86e6;--s-work:#5aa0f5;--s-ready:#7b8598;--s-block:#f0a03a;--s-rej:#ef6a62;--s-canc:#4a5266;--pred:#e879f9;}
+:root[data-theme=light]{
+  --bg:#f6f7f9;--panel:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--chip:#eef1f6;--accent:#2b5fd9;--band:#eceff4;
+  --s-done:#2e9e6b;--s-review:#7a5fd0;--s-work:#2b7de0;--s-ready:#98a2b3;--s-block:#e08a1e;--s-rej:#d6453d;--s-canc:#c4c9d4;--pred:#c026d3;}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+body{margin:0;height:100vh;overflow:hidden;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+/* same grid on both pages: header / filters / chosen / three columns */
+.app{height:100vh;display:grid;grid-template-columns:minmax(270px,19vw) minmax(0,1fr) minmax(300px,22vw);grid-template-rows:auto auto 26px minmax(0,1fr);gap:12px;padding:12px}
+.fbchosen{height:26px;overflow:hidden;margin:-4px 0 0!important;padding:0 4px}
+.fb-chosen{flex-wrap:nowrap!important;white-space:nowrap}
+@media (max-width:1100px){body{height:auto;overflow:auto}.app{height:auto;display:block}}
+
+/* header */
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;min-height:40px;margin:0!important}
+.topbar h1{font-size:20px;margin:0;white-space:nowrap}
+.nav{display:inline-flex;background:var(--chip);border-radius:10px;padding:3px;gap:2px}
+.nav a{padding:5px 14px;border-radius:8px;color:var(--mut);text-decoration:none;font-size:14px;white-space:nowrap}
+.nav a:hover{color:var(--ink)}
+.nav a.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.topbar .sp{flex:1}
+.topbar .gen{color:var(--mut);font-size:12px;white-space:nowrap}
+.iconbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--chip);cursor:pointer;display:grid;place-items:center;color:var(--ink);padding:0}
+.iconbtn:hover{border-color:var(--accent)}
+.iconbtn svg{width:18px;height:18px}
+
+/* task card (one for both pages) */
+.tcard{font-size:13.5px}
+.tcard h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tcard dl{margin:0;display:grid;grid-template-columns:118px minmax(0,1fr);gap:0 14px}
+.tcard dt,.tcard dd{padding:8px 0;border-bottom:1px solid var(--line);line-height:1.5}
+.tcard dt{color:var(--mut);font-size:12.5px}
+.tcard dd{margin:0;word-break:break-word}
+.tcard ul{margin:0;padding-left:18px}.tcard li{margin:3px 0}
+.tcard a{color:var(--accent)}
+.tcard .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;color:#fff;white-space:nowrap;text-transform:none;letter-spacing:0}
+.tcard .tag.sz{background:var(--chip);color:var(--ink);border:1px solid var(--line)}
+details.fold summary{cursor:pointer;color:var(--accent);font-size:13px}
+.rawtext{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font:inherit;font-size:13px;line-height:1.5;max-height:50vh;overflow:auto;resize:vertical;padding:8px 10px;background:var(--chip);border-radius:8px}
+.tcard code{background:var(--chip);border-radius:5px;padding:0 5px;font-size:12.5px}
+.tcard mark{background:rgba(255,200,0,.4);color:inherit;border-radius:2px;padding:0 1px}
+
+/* same look of cards and filter panel on both pages */
+.card,.pn{border-radius:12px}
+.fbcard{background:var(--panel)!important;border:1px solid var(--line)!important;border-radius:12px!important;padding:10px 12px!important;margin:0!important}
+
+.side.right>#detail{height:100%}

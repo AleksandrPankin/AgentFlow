@@ -2,6 +2,15 @@
 
 What changed in each AgentFlow version. Why it changed: `state/decisions.md`. The version of an installed project: `AgentFlow version:` in its `AGENTS.md`.
 
+## 2.1.0 - 2026-10-04
+
+- New template-owned `dashboard/`: a read-only view for the human built from the ledger, Task Files, and git (`python dashboard/build.py` -> `dashboard/out/index.html`, `out/graph.html`). Task table with filters over every axis, task card, Gantt, timeline, dependency, successor and check links. Interface in English, vocabulary taken from the protocol.
+- `dashboard/snapshot.py`: local versions of the dashboard sources with rollback; `dashboard/UI-RULES.md`: rules for changing the interface; `dashboard/README.md`: files and the data contract.
+- Protocol: new section "Dashboard"; `dashboard/` added to the template-owned list. `.gitignore` gets `dashboard/out/` and `dashboard/versions/`.
+- Orchestrator role: rebuild the dashboard when the human asks or a Stage closes.
+
+Migration from 2.0.x: copy `dashboard/`, append the two `.gitignore` lines, replace `docs/ai-handoff-protocol.md` and `roles/orchestrator.md`. No Task File or ledger changes.
+
 ## 2.0.0 - 2026-10-03
 
 - Tester review isolation: a disposable checkout of the `Verifies` commit; the launcher fails the attempt if the checked branch, worktree, or Task File changed. Codex is the first choice for Tester tasks.

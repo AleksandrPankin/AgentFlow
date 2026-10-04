@@ -15,6 +15,7 @@ All rules live in one file, [docs/ai-handoff-protocol.md](docs/ai-handoff-protoc
 | `roles/` | one instruction file per role; `tool-routing.md`: which tool takes which task |
 | `tasks/_template.md` | Task File template |
 | `tools/` | `run-task.ps1` launcher, `gate.py` preflight / verify / Stage check, `ledger.py` Task Ledger |
+| `dashboard/` | read-only view for the human: task table, filters, Gantt, timeline (`python dashboard/build.py`); see `dashboard/README.md` |
 | `AGENTS.md`, `CLAUDE.md`, `.claude/commands/` | entry points for the tools |
 | `GUIDE.md` | step-by-step guide (Russian): install, update, daily use |
 | `CHANGELOG.md` | what changed in each version |

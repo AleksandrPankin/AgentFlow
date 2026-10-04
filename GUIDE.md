@@ -161,6 +161,16 @@ VS Code → открыть папку проекта → новая сессия
 
 ---
 
+## Дашборд
+
+Дашборд — твой инструмент, не агентов: таблица задач, фильтры, Гант, сроки и связи между задачами. Он только читает `state/tasks.md`, `tasks/T-*.md` и git и ничего не меняет.
+
+1. Собери: `python dashboard\build.py`.
+2. Открой в браузере `dashboard\out\index.html` (обзор) или `dashboard\out\graph.html` (Гант и сроки). Страницы лежат вне git, пересобирай, когда нужен свежий вид.
+3. Хочешь поправить дашборд — дай задачу с описанием правки. Перед правкой: `python dashboard\snapshot.py save "что меняем"`; откат: `python dashboard\snapshot.py restore vN`. Правила интерфейса: `dashboard\UI-RULES.md`.
+
+Интерфейс английский: слова статусов (`ready`, `review`, `done`…) те же, что в реестре.
+
 ## Если что-то пошло не так
 
 | Ситуация | Что делать |
@@ -183,5 +193,6 @@ VS Code → открыть папку проекта → новая сессия
 | Остановить зависшего исполнителя | `tools\run-task.ps1 T-NNN -Stop` |
 | Запустить задачу вручную | `tools\run-task.ps1 T-NNN <codex\|claude\|agy>` |
 | Таблица задач | `python tools\ledger.py show` |
+| Дашборд (обзор, Гант) | `python dashboard\build.py`, затем `dashboard\out\index.html` |
 | Закрыть день | `/update-memory`, затем `/handoff-cmd` |
 | Работа без команды | `/start-session` … `/update-memory` |

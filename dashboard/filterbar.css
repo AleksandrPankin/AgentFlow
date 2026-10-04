@@ -1,0 +1,27 @@
+.fb-wrap{position:relative}
+.fb-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fb-dds{display:contents}
+.fb-dd{background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:4px 8px;cursor:pointer;font-size:12.5px;color:var(--ink);white-space:nowrap}
+.fb-dd:hover{border-color:var(--accent)}
+.fb-dd.on{border-color:var(--accent);color:var(--accent)}
+.fb-n{display:inline-block;min-width:2.1em;text-align:left;font-variant-numeric:tabular-nums}
+.fb-dd.open{background:var(--accent);border-color:var(--accent);color:#fff}
+.fb-wrap .fb-search{flex:1 1 160px;min-width:140px;background:var(--chip);border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:13px;color:var(--ink)}
+.fb-chk{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--mut);cursor:pointer;white-space:nowrap}
+.fb-reset{background:none;border:1px solid var(--line);border-radius:9px;padding:4px 10px;cursor:pointer;font-size:12.5px;white-space:nowrap;color:var(--ink)}
+.fb-reset:hover{border-color:var(--accent);color:var(--accent)}
+.fb-pop{position:absolute;z-index:30;background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);width:min(420px,92vw);max-height:60vh;overflow:auto}
+.fb-pop[hidden]{display:none}
+.fb-ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.fb-link{background:none;border:0;color:var(--accent);cursor:pointer;font-size:12px;padding:0;text-transform:none;letter-spacing:0}
+.fb-link:hover{text-decoration:underline}
+.fb-chips{display:flex;flex-wrap:wrap;gap:6px}
+.fb-chip{background:var(--chip);border:1px solid transparent;border-radius:999px;padding:3px 11px;cursor:pointer;font-size:13px;color:var(--ink)}
+.fb-chip small{color:var(--mut);margin-left:5px}
+.fb-chip:hover{border-color:var(--accent)}
+.fb-chip.on{background:var(--accent);color:#fff}.fb-chip.on small{color:#fff;opacity:.85}
+.fb-chip.zero{opacity:.45}
+.fb-chosen{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mut);min-height:26px}
+.fb-sel{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:2px 10px;cursor:pointer;font-size:12px}
+.fb-sel:hover{filter:brightness(1.12)}
+.fb-count{margin-left:4px}

@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasks · __PROJECT__</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--chip:#eef1f6;--accent:#2b5fd9;
+  --s-done:#2e9e6b;--s-review:#7a5fd0;--s-work:#2b7de0;--s-ready:#98a2b3;--s-block:#e08a1e;--s-rej:#d6453d;--s-canc:#c4c9d4;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#12151c;--panel:#1b2029;--ink:#e6e9f0;--mut:#98a2b3;--line:#2a3140;--chip:#252c3a;--accent:#7aa2ff;
+  --s-done:#3fbf86;--s-review:#9b86e6;--s-work:#5aa0f5;--s-ready:#7b8598;--s-block:#f0a03a;--s-rej:#ef6a62;--s-canc:#4a5266;}}
+:root[data-theme=dark]{
+  --bg:#12151c;--panel:#1b2029;--ink:#e6e9f0;--mut:#98a2b3;--line:#2a3140;--chip:#252c3a;--accent:#7aa2ff;
+  --s-done:#3fbf86;--s-review:#9b86e6;--s-work:#5aa0f5;--s-ready:#7b8598;--s-block:#f0a03a;--s-rej:#ef6a62;--s-canc:#4a5266;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{height:100vh;overflow:hidden}
+.app{height:100vh;display:grid;grid-template-columns:minmax(270px,19vw) minmax(0,1fr) minmax(270px,20vw);grid-template-rows:auto auto auto minmax(0,1fr);gap:12px;padding:12px}
+.app>header{grid-column:1/-1;margin:0}
+.side{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.side .card{margin:0}
+.left .card{flex:1 1 auto}
+.center{min-height:0;min-width:0;display:flex;flex-direction:column;gap:10px}
+.center .kpis{margin:0;grid-template-columns:repeat(auto-fit,minmax(105px,1fr))}
+#attnCard{flex:0 1 auto;max-height:24%;overflow:auto;margin:0}
+#tasksCard{flex:1;min-height:0;display:flex;flex-direction:column;margin:0}
+#tasksCard .tablewrap{flex:1;min-height:0;overflow:auto}
+#tasksCard td:first-child{white-space:nowrap}
+@media (max-width:1100px){body{height:auto;overflow:auto}.app{height:auto;display:block}.side{overflow:visible;margin-bottom:12px}.center{margin-bottom:12px}#attnCard{max-height:none}#tasksCard .tablewrap{max-height:70vh}.side .card{margin-bottom:10px}}
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:20px;margin:0}
+.mut{color:var(--mut)}
+button,input{font:inherit;color:inherit}
+.btn{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--c,var(--line));border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left}
+.kpi:hover{border-color:var(--accent);border-left-color:var(--c,var(--accent))}
+.kpi.on{outline:2px solid var(--accent)}
+.kpi b{display:block;font-size:26px;line-height:1.1}
+.kpi span{color:var(--mut);font-size:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.filters{display:grid;gap:8px}
+.fg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fg>.lbl{width:96px;color:var(--mut);font-size:12px}
+.chip{background:var(--chip);border:1px solid transparent;border-radius:999px;padding:2px 10px;cursor:pointer;font-size:13px}
+.chip small{color:var(--mut);margin-left:4px}
+.chip.on{background:var(--accent);color:#fff}.chip.on small{color:#fff;opacity:.85}
+.chip.zero{opacity:.45}
+.chip.x{background:transparent;border:1px dashed var(--line);color:var(--accent)}
+.chip.x:hover{border-color:var(--accent)}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--mut);cursor:pointer;white-space:nowrap}
+mark{background:rgba(255,200,0,.4);color:inherit;border-radius:2px;padding:0 1px}
+.search{flex:1;min-width:200px;background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:5px 10px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
+.bars{display:grid;gap:5px}
+.bar{display:grid;grid-template-columns:130px 1fr 36px;gap:8px;align-items:center}
+.bar .name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{display:flex;height:18px;background:var(--chip);border-radius:4px;overflow:hidden}
+.seg{height:100%;cursor:pointer;min-width:2px}
+.seg:hover{filter:brightness(1.15)}
+.bar .n{text-align:right;color:var(--mut);font-size:12px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.days{display:flex;align-items:flex-end;gap:3px;height:110px;padding-top:6px}
+.day{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:8px;height:100%}
+.day div{width:100%;background:var(--s-done);border-radius:2px 2px 0 0}
+.day small{font-size:10px;color:var(--mut);margin-top:2px}
+.attn{display:grid;gap:4px}
+.attn a{display:flex;gap:8px;cursor:pointer;padding:3px 6px;border-radius:6px}
+.attn a:hover{background:var(--chip)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-top:5px;flex:none}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mut);cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;background:var(--panel)}
+th.sorted::after{content:" ▾"}th.sorted.asc::after{content:" ▴"}
+tr.row{cursor:pointer}tr.row:hover{background:var(--chip)}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;color:#fff;white-space:nowrap}
+.pill{font-size:12px;color:var(--mut)}
+.flag{color:var(--s-block);font-size:12px;margin-left:6px}
+.detail td{background:var(--chip);padding:10px 14px}
+.detail dl{margin:0;display:grid;grid-template-columns:130px 1fr;gap:4px 12px}
+.detail dt{color:var(--mut)}.detail dd{margin:0;white-space:pre-wrap;word-break:break-word}
+.detail a{color:var(--accent)}
+.empty{padding:20px;text-align:center;color:var(--mut)}
+@media (max-width:640px){.fg>.lbl{width:100%}.bar{grid-template-columns:90px 1fr 30px}}
+/*FILTERBAR_CSS*/
+.fbcard{grid-column:1/-1;margin:0!important;padding:10px 12px}
+.fbchosen{grid-column:1/-1;margin:-4px 0 0;padding:0 4px}
+#detail{overflow:auto}
+#detail dl{margin:0;display:grid;grid-template-columns:118px minmax(0,1fr);gap:0 14px}
+#detail dt,#detail dd{padding:8px 0;border-bottom:1px solid var(--line);line-height:1.5}
+#detail dt{color:var(--mut);font-size:12.5px}
+#detail dd{margin:0;word-break:break-word;font-size:13.5px}
+#detail a{color:var(--accent)}
+tr.row.sel{background:var(--chip);outline:2px solid var(--accent);outline-offset:-2px}
+.center .kpis{grid-template-columns:repeat(10,minmax(0,1fr))!important;gap:8px}
+.kpi{padding:8px 10px}.kpi b{font-size:22px}.kpi span{font-size:11px;line-height:1.2;display:block}
+.day{min-width:3px!important}.days{gap:2px!important}
+@media (max-height:800px){.left .card:last-child{display:none}}
+@media (max-width:1500px){#tasksCard th:nth-child(5),#tasksCard td:nth-child(5){display:none}}
+@media (max-width:1500px){#tasksCard th:nth-child(8),#tasksCard td:nth-child(8),#tasksCard th:nth-child(9),#tasksCard td:nth-child(9){display:none}.bar{grid-template-columns:96px 1fr 30px!important}}
+/*COMMON_CSS*/
+</style>
+</head>
+<body>
+<div class="app">
+<header id="hdr"></header>
+
+<div class="card fbcard" id="fbar"></div>
+<div class="fbchosen" id="fchosen"></div>
+
+<aside class="side left">
+  <div class="card"><h2>By stage</h2><div class="bars" id="bStage"></div><div class="legend" id="legend"></div></div>
+  <div class="card"><h2>By agent</h2><div class="bars" id="bTool"></div></div>
+  <div class="card"><h2>By role</h2><div class="bars" id="bRole"></div></div>
+  <div class="card"><h2>Done per day (28 days)</h2><div class="days" id="days"></div></div>
+</aside>
+
+<main class="center">
+  <div class="kpis" id="kpis"></div>
+  <div class="card" id="attnCard"><h2>Needs attention</h2><div class="attn" id="attn"></div></div>
+  <div class="card" id="tasksCard"><h2>Tasks</h2>
+    <div class="tablewrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  </div>
+</main>
+
+<aside class="side right">
+  <div class="card" id="detail"><h2>Task</h2><div class="mut">Click a table row or a task under "Needs attention" to see details here.</div></div>
+</aside>
+</div>
+
+<script>
+/*COMMON_JS*/
+/*FILTERBAR_JS*/
+const DATA = __DATA__;
+const P = C.prep(DATA), T = P.tasks, calcAct = C.activeModel(P.pings, 60);
+const ST = {"cancelled":"--s-canc","rejected":"--s-rej","blocked":"--s-block","ready":"--s-ready","in progress":"--s-work","review":"--s-review","done":"--s-done"};
+const cap = s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+const ST_ORDER = Object.keys(ST);
+const col = s => `var(${ST[s]||'--s-ready'})`;
+const DIMS = C.makeDims(T, t=>t.status);
+const sel = {}; DIMS.forEach(d=>sel[d.k]=new Set());
+let flags = {owner:false, blocked:false}, query="", qBody=false, sortKey="id", sortAsc=false, selId=null;
+const $ = id=>document.getElementById(id);
+const esc = s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const idNum = id=>+id.slice(2);
+function snippet(t,q){ if(!t.bl||!q) return ""; const w=q.toLowerCase().split(/\s+/).filter(Boolean)[0]; if(!w) return ""; const i=t.bl.indexOf(w); if(i<0) return ""; const body=t.body, a=Math.max(0,i-70), b=Math.min(body.length,i+w.length+110); return (a>0?"…":"")+esc(body.slice(a,i))+"<mark>"+esc(body.slice(i,i+w.length))+"</mark>"+esc(body.slice(i+w.length,b))+(b<body.length?"…":""); }
+const baseHay=t=>(t.id+" "+t.title+" "+t.notes+" "+t.commit+" "+t.goal).toLowerCase();
+const bodyOnly=t=>qBody&&query&&!query.split(/\s+/).every(w=>baseHay(t).includes(w));
+function sizeShort(t){ const z=t.size; if(!z) return "no worker commits"; return t.sizeCls==="docs"?`docs only +${z.add} −${z.del}`:`${t.sizeCls} · code +${z.codeAdd} −${z.codeDel}`; }
+function sizeFull(t){ const z=t.size; if(!z) return '<span class="mut">'+(["rejected","cancelled"].includes(t.status)&&t.role==="developer"?"branch deleted after "+t.status+" — size unrecoverable":"no worker commits ([T-NNN] in subject): testers, deployments and docs-only work")+'</span>'; return `<b>${esc(t.sizeCls)}</b> · code: +${z.codeAdd} −${z.codeDel}, ${z.codeFiles} file(s)<br><span class="mut">with docs: +${z.add} −${z.del}, ${z.files} file(s) · commits: ${z.commits}<br>S &lt; 50, M &lt; 300, L &lt; 1000, XL ≥ 1000 code lines</span>`; }
+
+
+function pass(t, skip){
+  if(!C.matchDims(t,DIMS,sel,skip)) return false;
+  if(!C.flagMatch(t,flags)) return false;
+  if(query){ const h=baseHay(t)+(qBody?" "+t.bl:""); if(!query.split(/\s+/).every(w=>h.includes(w))) return false; }
+  return true;
+}
+const filtered = ()=>T.filter(t=>pass(t));
+function uniq(k){ return DIMS.find(d=>d.k===k).vals(); }
+
+function renderKpis(){
+  const f=filtered();
+  const cnt=s=>f.filter(t=>t.status===s).length;
+  const k=[["Total",f.length,"--line",null]];
+  ST_ORDER.forEach(s=>k.push([cap(s),cnt(s),ST[s],s]));
+  k.push(["Waiting for human",f.filter(t=>t.waitsOwner).length,"--s-block","owner"]);
+  k.push(["Waiting for another task",f.filter(t=>t.blockedBy.length&&!t.final).length,"--s-ready","blocked"]);
+  $("kpis").innerHTML=k.map(([n,v,c,key])=>{
+    const on = key && (key==="owner"?flags.owner:key==="blocked"?flags.blocked:sel.status.has(key));
+    return `<button class="kpi${on?" on":""}" style="--c:var(${c})" data-key="${key||""}"><b>${v}</b><span>${n}</span></button>`;}).join("");
+  document.querySelectorAll(".kpi").forEach(b=>b.onclick=()=>{
+    const key=b.dataset.key; if(!key) return;
+    if(key==="owner") flags.owner=!flags.owner; else if(key==="blocked") flags.blocked=!flags.blocked;
+    else toggle("status",key);
+    render();
+  });
+}
+
+function toggle(k,v){ const s=sel[k]; if(s.has(v)) s.delete(v); else s.add(v); }
+
+const fb=createFilterBar({
+  bar:$("fbar"), chosen:$("fchosen"), sel,
+  dims:DIMS.map(d=>({k:d.k,l:d.l,vals:()=>uniq(d.k),count:v=>T.filter(t=>d.get(t).includes(v)&&pass(t,d.k)).length})),
+  flags:[{k:"owner",l:"Waits for human",get:()=>flags.owner,set:v=>{flags.owner=v;}},{k:"blocked",l:"Waits for another task",get:()=>flags.blocked,set:v=>{flags.blocked=v;}}],
+  search:{placeholder:"Search: ID, title, notes, commit…",get:()=>query,set:v=>{query=v.trim().toLowerCase();}},
+  body:{get:()=>qBody,set:v=>{qBody=v;}},
+  shown:()=>`Showing ${filtered().length} of ${T.length}`,
+  clear:()=>{DIMS.forEach(d=>sel[d.k].clear()); flags.owner=false; flags.blocked=false; query="";},
+  onChange:()=>render()
+});
+
+function stacked(el,key){
+  const f=filtered(); const vals=uniq(key);
+  const max=Math.max(1,...vals.map(v=>f.filter(t=>t[key]===v).length));
+  el.innerHTML=vals.map(v=>{
+    const rows=f.filter(t=>t[key]===v); if(!rows.length) return "";
+    const segs=ST_ORDER.map(s=>{const n=rows.filter(t=>t.status===s).length; return n?`<div class="seg" title="${esc(v)} · ${cap(s)}: ${n}" data-k="${key}" data-v="${esc(v)}" data-s="${s}" style="width:${n/max*100}%;background:${col(s)}"></div>`:"";}).join("");
+    return `<div class="bar"><span class="name" title="${esc(v)}">${esc(v)}</span><div class="track">${segs}</div><span class="n">${rows.length}</span></div>`;
+  }).join("")||`<div class="empty">No data</div>`;
+  el.querySelectorAll(".seg").forEach(s=>s.onclick=()=>{
+    sel[s.dataset.k].clear(); sel[s.dataset.k].add(s.dataset.v);
+    sel.status.clear(); sel.status.add(s.dataset.s); render();
+  });
+}
+
+function renderDays(){
+  const f=filtered().filter(t=>t.status==="done" && t.updated);
+  const today=new Date(DATA.generated.slice(0,10)+"T12:00:00"); const days=[];
+  for(let i=27;i>=0;i--){ const d=new Date(today); d.setDate(d.getDate()-i); days.push(d.toISOString().slice(0,10)); }
+  const c=Object.fromEntries(days.map(d=>[d,0])); f.forEach(t=>{ if(t.updated in c) c[t.updated]++; });
+  const max=Math.max(1,...Object.values(c));
+  $("days").innerHTML=days.map(d=>`<div class="day" title="${d}: ${c[d]}"><div style="height:${c[d]/max*80}%"></div><small>${c[d]||""}</small></div>`).join("");
+}
+
+function renderAttn(){
+  const f=filtered().filter(t=>!t.final && (t.status==="blocked"||t.status==="review"||t.waitsOwner||t.blockedBy.length));
+  f.sort((a,b)=>idNum(b.id)-idNum(a.id));
+  $("attn").innerHTML=f.map(t=>{
+    const why=[cap(t.status), t.waitsOwner?"waits for human":"", t.blockedBy.length?"waits for "+t.blockedBy.join(", "):""].filter(Boolean).join(" · ");
+    return `<a data-id="${t.id}"><span class="dot" style="background:${col(t.status)}"></span><span><b>${t.id}</b> ${esc(t.title)} <span class="mut">— ${esc(why)}</span></span></a>`;}).join("")||`<div class="empty">Nothing pending</div>`;
+  document.querySelectorAll("#attn a").forEach(a=>a.onclick=()=>select(a.dataset.id));
+}
+
+const COLS=[["id","ID"],["title","Title"],["stage","Stage"],["role","Role"],["origin","Set by"],["tool","Agent"],["status","Status"],["result","Worker outcome"],["check","Independent check"],["sizeN","Changes"],["updated","Updated"]];
+function renderTable(){
+  $("thead").innerHTML="<tr>"+COLS.map(([k,l])=>`<th data-k="${k}" class="${sortKey===k?"sorted"+(sortAsc?" asc":""):""}">${l}</th>`).join("")+"</tr>";
+  document.querySelectorAll("#thead th").forEach(th=>th.onclick=()=>{ if(sortKey===th.dataset.k) sortAsc=!sortAsc; else {sortKey=th.dataset.k; sortAsc=true;} renderTable(); });
+  const f=filtered().sort((a,b)=>{
+    let x=a[sortKey],y=b[sortKey]; if(sortKey==="id"){x=idNum(a.id);y=idNum(b.id);}
+    if(sortKey==="status"){x=ST_ORDER.indexOf(a.status);y=ST_ORDER.indexOf(b.status);}
+    const r= typeof x==="number"? x-y : String(x).localeCompare(String(y),undefined,{numeric:true});
+    return sortAsc?r:-r;});
+  $("tbody").innerHTML=f.map(t=>{
+    return `<tr class="row${selId===t.id?" sel":""}" data-id="${t.id}"><td><b>${t.id}</b></td>
+      <td>${esc(t.title)}${bodyOnly(t)?'<span class="flag">🔎 in body</span>':""}${t.waitsOwner?'<span class="flag">⚑ human</span>':""}${t.blockedBy.length&&!t.final?`<span class="flag">⏳ ${t.blockedBy.join(", ")}</span>`:""}</td>
+      <td>${esc(t.stage)}</td><td>${esc(t.role)}</td><td>${esc(t.origin)}</td><td>${esc(t.tool)}</td>
+      <td><span class="tag" style="background:${col(t.status)}">${esc(cap(t.status))}</span></td>
+      <td class="pill">${esc(t.result)}</td><td class="pill">${esc(t.check)}</td><td class="pill" title="${esc(sizeShort(t))}">${t.size?(t.sizeCls==="docs"?"docs":`<b>${esc(t.sizeCls)}</b> +${t.size.codeAdd} −${t.size.codeDel}`):"—"}</td><td class="pill">${esc(t.updated)}</td></tr>`;
+  }).join("")||`<tr><td colspan="11" class="empty">Nothing found</td></tr>`;
+  document.querySelectorAll("tr.row").forEach(r=>r.onclick=()=>select(r.dataset.id));
+}
+
+function select(id){
+  selId=id; renderTable(); renderDetail();
+  const row=document.querySelector(`tr.row[data-id="${id}"]`); if(row) row.scrollIntoView({block:"nearest"});
+}
+function renderDetail(){
+  const t=T.find(x=>x.id===selId); if(!t) return;
+  const ctx={byId:P.byId,edges:P.edges,NOW:P.NOW,dur:(a,b)=>(b-a)/C.H,calDur:(a,b)=>(b-a)/C.H,actDur:(a,b)=>calcAct(b)-calcAct(a),query,qBody};
+  $("detail").innerHTML=C.taskCard(t,ctx); C.bindCard($("detail"),select);
+}
+
+function render(){
+  renderKpis(); fb.render();
+  stacked($("bStage"),"stage"); stacked($("bTool"),"tool"); stacked($("bRole"),"role");
+  $("legend").innerHTML=ST_ORDER.map(s=>`<span><i style="background:${col(s)}"></i>${cap(s)}</span>`).join("");
+  renderDays(); renderAttn(); renderTable();
+}
+
+C.initHeader("over", DATA.generated, DATA.project);
+render();
+</script>
+</body>
+</html>

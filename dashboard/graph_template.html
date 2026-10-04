@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__PROJECT__ tasks · Gantt and timeline</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--chip:#eef1f6;--accent:#2b5fd9;--band:#eceff4;
+  --s-done:#2e9e6b;--s-review:#7a5fd0;--s-work:#2b7de0;--s-ready:#98a2b3;--s-block:#e08a1e;--s-rej:#d6453d;--s-canc:#c4c9d4;--pred:#c026d3;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#12151c;--panel:#1b2029;--ink:#e6e9f0;--mut:#98a2b3;--line:#2a3140;--chip:#252c3a;--accent:#7aa2ff;--band:#222836;
+  --s-done:#3fbf86;--s-review:#9b86e6;--s-work:#5aa0f5;--s-ready:#7b8598;--s-block:#f0a03a;--s-rej:#ef6a62;--s-canc:#4a5266;--pred:#e879f9;}}
+:root[data-theme=dark]{
+  --bg:#12151c;--panel:#1b2029;--ink:#e6e9f0;--mut:#98a2b3;--line:#2a3140;--chip:#252c3a;--accent:#7aa2ff;--band:#222836;
+  --s-done:#3fbf86;--s-review:#9b86e6;--s-work:#5aa0f5;--s-ready:#7b8598;--s-block:#f0a03a;--s-rej:#ef6a62;--s-canc:#4a5266;--pred:#e879f9;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{height:100vh;overflow:hidden}
+.app{height:100vh;display:grid;grid-template-columns:minmax(270px,18vw) minmax(0,1fr) minmax(300px,22vw);grid-template-rows:auto auto auto minmax(0,1fr);gap:12px;padding:12px}
+.app>header{grid-column:1/-1;margin:0}
+.side{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.side .card{margin:0}
+#mainc{min-height:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+#view{flex:1;min-height:0;position:relative}
+#sumView{height:100%;overflow:auto}
+.fgrp{margin-bottom:8px}.fgrp>.mut{font-size:12px;margin-bottom:3px}
+.fgrp .chip{margin:0 4px 4px 0}
+details summary{cursor:pointer;color:var(--mut);font-size:12px}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:20px;margin:0}
+.mut{color:var(--mut)}
+button,input,select{font:inherit;color:inherit}
+.btn{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer;text-decoration:none;color:var(--ink);display:inline-block}
+.btn:hover{border-color:var(--accent)}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+select,input[type=search]{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.row{display:flex;gap:10px 18px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.row label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.seg2{display:inline-flex}.seg2 .btn{border-radius:0}.seg2 .btn:first-child{border-radius:8px 0 0 8px}.seg2 .btn:last-child{border-radius:0 8px 8px 0}
+.chip{background:var(--chip);border:1px solid transparent;border-radius:999px;padding:1px 9px;cursor:pointer;font-size:13px}
+.chip.on{background:var(--accent);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--chip);border-radius:10px;padding:8px 12px}
+.kpi b{display:block;font-size:22px;line-height:1.15}.kpi span{color:var(--mut);font-size:12px}
+.note{color:var(--mut);font-size:12px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(540px,1fr));gap:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600;font-size:12px}
+.hbar{display:grid;grid-template-columns:150px 1fr 70px;gap:8px;align-items:center;margin:3px 0}
+.hbar .t{height:14px;background:var(--chip);border-radius:3px;overflow:hidden}
+.hbar .t div{height:100%}
+.hbar .v{text-align:right;color:var(--mut);font-size:12px}
+#gwrap{display:flex;height:100%;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative}
+#gl{flex:none;overflow:hidden;position:relative;border-right:1px solid var(--line)}
+#glh{position:absolute;left:0;top:0;right:0;height:44px;background:var(--panel);border-bottom:1px solid var(--line);z-index:2;padding:6px 8px;font-size:12px;color:var(--mut)}
+#gr{flex:1;overflow:auto;height:100%;min-width:0}
+#ga{position:sticky;top:0;z-index:3;display:block;background:var(--panel)}
+svg text{font-family:inherit;fill:var(--ink)}
+.lbl{font-size:12px;cursor:pointer}
+.lbl.future{opacity:.35}
+.grp text{font-weight:600;fill:var(--mut)}
+.edge{fill:none;transition:opacity .1s}
+.legendline{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:8px 0 0}
+.legendline i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.legendline u{display:inline-block;width:22px;border-top:2px dashed;margin-right:4px;vertical-align:3px;text-decoration:none}
+#detail{min-height:0;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px}
+#detail h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+@media (max-width:1150px){body{height:auto;overflow:auto}.app{height:auto;display:block}.side{overflow:visible;margin-bottom:12px}#view{height:75vh}#detail{margin-top:12px;max-height:none}#mainc{margin-bottom:12px}}
+#board{height:100%;border:1px solid var(--line);border-radius:8px;overflow:auto}
+#bin{position:relative;display:flex;gap:8px;padding:8px;width:100%;align-items:flex-start}
+.bcol{flex:1 1 0;min-width:0;background:var(--chip);border-radius:8px;border-top:4px solid var(--c)}
+.bhead{padding:6px 8px;position:sticky;top:0;background:var(--chip);border-radius:8px 8px 0 0;z-index:2}
+.bhead span{color:var(--mut)}
+.bcard{position:relative;z-index:2;background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:4px;padding:3px 7px;font-size:12px;cursor:pointer;line-height:1.3}
+.bcard:hover{border-color:var(--accent)}.bcard.sel{outline:2px solid var(--accent)}
+.bcard .bm{display:block;color:var(--mut);font-size:11px}
+#bsvg{position:absolute;left:0;top:0;pointer-events:none;z-index:1}
+#bsvg2{position:absolute;left:0;top:0;pointer-events:none;z-index:3}
+#detail dl{margin:0;display:grid;grid-template-columns:128px minmax(0,1fr);gap:0 16px}
+#detail dt,#detail dd{padding:9px 0;border-bottom:1px solid var(--line);line-height:1.55}
+#detail dt{color:var(--mut);font-size:12.5px}#detail dd{margin:0;word-break:break-word;font-size:13.5px}
+#detail ul{margin:0;padding-left:18px}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;color:#fff}
+a{color:var(--accent)}
+.slider{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.slider input[type=range]{flex:1;min-width:120px}
+.pn{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.pn.grow{flex:1 1 auto}
+.pn h3{margin:0 0 10px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:600;display:flex;align-items:center;gap:8px}
+.pn h3::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--accent)}
+.seg{display:flex;background:var(--chip);border-radius:9px;padding:3px;gap:2px}
+.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:5px 8px;cursor:pointer;color:var(--mut);font-size:13px}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.2);font-weight:600}
+.gaprow{display:flex;justify-content:space-between;align-items:center;margin:12px 0 4px;font-size:13px}
+.gaprow b{background:var(--chip);border-radius:6px;padding:0 8px}
+input[type=range]{accent-color:var(--accent)}
+.ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--mut)}
+.hint{margin:8px 0 0;font-size:12px;color:var(--mut);line-height:1.45}
+.fl{display:block;margin:14px 0 5px;font-size:12px;color:var(--mut)}
+.pn select.full{width:100%;padding:7px 10px}
+.lines{display:grid;gap:1px}
+.ln{display:grid;grid-template-columns:34px 1fr auto auto;gap:8px;align-items:center;padding:6px 4px;border-radius:8px;cursor:pointer;font-size:13px;line-height:1.3;position:relative}
+.ln:hover{background:var(--chip)}.ln.static{cursor:default}.ln.static:hover{background:none}
+.ln em{font-style:normal;color:var(--mut);font-size:12px}
+.ln svg.ls{display:block;overflow:visible}
+.ln .ic{text-align:center;color:var(--mut);font-size:15px}
+.l-dep{border-top-width:1px!important}.l-dead{border-top:3px solid var(--s-block)!important}.l-succ{border-top:3px dashed var(--s-rej)!important}.l-check{border-top:2px dotted var(--s-review)!important}.l-pred{border-top:3px dotted var(--pred)!important}.l-end{border-top:2px dotted var(--s-block)!important}
+.ln input{position:absolute;opacity:0;pointer-events:none}
+.sw{width:30px;height:17px;border-radius:9px;background:var(--line);position:relative;transition:.15s;display:block}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:.15s}
+.ln input:checked+.sw{background:var(--accent)}.ln input:checked+.sw::after{left:15px}
+.hrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.hrow h3{margin:0}
+.link{background:none;border:0;color:var(--accent);cursor:pointer;font-size:12px;padding:0}
+.link:hover{text-decoration:underline}
+#ctl input[type=search]{width:100%;margin:0 0 8px;padding:7px 10px}
+.chk{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mut);margin:0 0 12px;cursor:pointer}
+mark{background:rgba(255,200,0,.4);color:inherit;border-radius:2px;padding:0 1px}
+.fgrp{margin-bottom:12px}
+.fgrp .fh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;font-size:12px}
+.fgrp .chip{margin:0 4px 5px 0;padding:3px 10px}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:var(--accent);color:#fff}
+#detail{padding:16px 18px}
+#detail li{margin:4px 0}
+#ctl{overflow:hidden}
+.pn{flex:none}
+.pn.grow{flex:1 1 0;display:flex;flex-direction:column;min-height:0}
+#chips{flex:1;min-height:0;overflow:auto;padding-right:4px}
+/*FILTERBAR_CSS*/
+.fbcard{grid-column:1/-1;padding:10px 12px}
+.fbchosen{grid-column:1/-1;margin:-4px 0 0;padding:0 4px}
+.pn{padding:10px 12px}
+.pn h3{margin-bottom:8px}
+.ln{padding:3px 4px}
+.fl{margin:9px 0 4px}
+.gaprow{margin:8px 0 2px}
+details.hint2{margin-top:6px}
+details.hint2 summary{cursor:pointer;color:var(--mut);font-size:12px}
+#ctl{overflow-y:auto;scrollbar-width:thin}
+#ctl::-webkit-scrollbar{width:6px}
+#ctl::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+/*COMMON_CSS*/
+</style>
+</head>
+<body>
+<div class="app">
+<header id="hdr"></header>
+
+<div class="pn fbcard" id="fbar"></div>
+<div class="fbchosen" id="fchosen"></div>
+
+<aside class="side" id="ctl">
+  <section class="pn">
+    <h3>Time</h3>
+    <div class="seg"><button id="mCal">Calendar</button><button id="mAct">No pauses</button></div>
+    <label class="fl">Time scale</label>
+    <div class="seg" id="unitBtns"><button data-u="auto">Auto</button><button data-u="h">Hours</button><button data-u="d">Days</button><button data-u="w">Weeks</button><button data-u="m">Months</button></div>
+    <div class="hint" id="unitInfo" style="margin-top:6px"></div>
+    <div class="gaprow"><span>Pause longer than</span><b id="gapV">60 min</b></div>
+    <input type="range" id="gap" min="15" max="240" step="15" value="60" style="width:100%">
+    <div class="ticks"><span>15 min</span><span>2 h</span><span>4 h</span></div>
+    <details class="hint2"><summary>how "No pauses" is computed</summary><p class="hint" style="margin-top:4px">"No pauses" counts only active time inferred from commits: a gap longer than the threshold (night, idle, waiting) is not counted and is compressed on the Gantt axis.</p></details>
+  </section>
+  <section class="pn" id="ganttOnly">
+    <h3>Gantt view</h3>
+    <label class="fl" style="margin-top:0">Grouping</label>
+    <div class="seg" id="groupBtns"><button data-g="stage">Stages</button><button data-g="status">Statuses</button><button data-g="time">No groups</button></div>
+    <select id="group" class="full" style="margin-top:6px"><option value="">other grouping…</option><option value="chain">by rework chain</option><option value="tool">by agent</option><option value="role">by role</option><option value="origin">by origin</option></select>
+    <label class="fl">Zoom</label>
+    <div class="seg" id="zoomBtns"><button data-z="1">fit</button><button data-z="2">×2</button><button data-z="4">×4</button><button data-z="8">×8</button></div>
+    <select id="zoom" hidden><option value="1">fit</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option></select>
+    </section>
+  <section class="pn" id="linesCard">
+    <h3>Link lines · Gantt and pipeline</h3>
+    <div class="lines">
+      <label class="ln"><svg class="ls" data-k="dep" width="34" height="12"></svg><span>Dependency</span><em id="cDep"></em><input type="checkbox" id="oAll" checked><s class="sw"></s></label>
+      <label class="ln"><svg class="ls" data-k="dead" width="34" height="12"></svg><span>Depends on a rejected or cancelled task</span><em id="cDead"></em><input type="checkbox" id="oDead" checked><s class="sw"></s></label>
+      <label class="ln"><svg class="ls" data-k="succ" width="34" height="12"></svg><span>Successor: what replaced the task</span><em id="cSucc"></em><input type="checkbox" id="oSucc" checked><s class="sw"></s></label>
+      <label class="ln"><svg class="ls" data-k="pred" width="34" height="12"></svg><span>Predecessor: what the task replaces</span><em id="cPred"></em><input type="checkbox" id="oPred" checked><s class="sw"></s></label>
+      <label class="ln"><svg class="ls" data-k="check" width="34" height="12"></svg><span>Tester check</span><em id="cCheck"></em><input type="checkbox" id="oCheck"><s class="sw"></s></label>
+      <label class="ln"><svg class="ls" data-k="ended" width="34" height="12"></svg><span>Removed dependency</span><em id="cEnded"></em><input type="checkbox" id="oEnded" checked><s class="sw"></s></label>
+    </div>
+    <label class="fl">Link display</label>
+    <div class="lines">
+      <label class="ln"><span class="ic">◌</span><span>Background links (all at once)</span><em></em><input type="checkbox" id="oBg" checked><s class="sw"></s></label>
+      <label class="ln"><span class="ic">◐</span><span>Dim the rest on hover</span><em></em><input type="checkbox" id="oDim" checked><s class="sw"></s></label>
+      <div class="ln static" style="grid-template-columns:34px 1fr auto"><span class="ic">☼</span><span>Background brightness</span><em id="bgOpV">40%</em></div>
+      <input type="range" id="bgOp" min="10" max="100" step="5" value="40" style="width:100%">
+    </div>
+  </section>
+</aside>
+
+<main id="mainc">
+  <div class="row" style="margin:0"><span class="seg2"><button class="btn" id="vGantt">Gantt with links</button><button class="btn" id="vBoard">Pipeline by status</button><button class="btn" id="vSum">Timing and summary</button></span></div>
+  <div class="card" style="margin:0;padding:8px 12px">
+    <div class="slider"><span class="mut">State as of:</span>
+      <button class="btn" id="prev">◀</button><input type="range" id="asof" min="0" value="0"><button class="btn" id="next">▶</button>
+      <button class="btn" id="play">▶ Play</button><button class="btn" id="nowBtn">Now</button></div>
+    <div class="note" id="asofLbl" style="margin-top:2px"></div>
+  </div>
+  <div id="view">
+    <div id="gwrap">
+      <div id="gl"><div id="glh">Task</div></div>
+      <div id="gr"></div>
+    </div>
+    <div id="board" style="display:none"></div>
+    <div id="sumView" style="display:none"><div class="card" style="margin:0"><h2>Timing: elapsed project time</h2>
+      <div class="note" style="margin-bottom:10px">Active time is an estimate from commits: consecutive commits with a gap no longer than the threshold count as one continuous work period; anything longer is a pause (night, idle, waiting for the human). A rough guide, not a timesheet. The mode on the left affects the Gantt axis and the duration columns; the top cards always show both times.</div>
+      <div class="kpis" id="kpis"></div>
+      <div class="two">
+        <div><h2>By stage</h2><div style="overflow-x:auto"><table id="tStage"></table></div></div>
+        <div><h2>By agent</h2><div style="overflow-x:auto"><table id="tTool"></table></div></div>
+        <div><h2>Role × agent (done / total)</h2><div style="overflow-x:auto"><table id="tMatrix"></table></div><div class="note">Role is what the task did (development, test, deploy). Agent is who executed it.</div></div>
+        <div><h2>By origin</h2><div style="overflow-x:auto"><table id="tOrigin"></table></div><div class="note">Origin is an estimate from the ledger and Task File text: a human remark means human; a link to a tester or deployer report means them; anything else is the orchestrator (it writes all Task Files). The basis is shown in the task card.</div></div>
+        <div><h2>Where time goes in a done task</h2><div id="shareBars"></div><div class="note" id="shareNote"></div></div>
+        <div><h2>Active hours per day</h2><div id="dayBars"></div></div>
+      </div></div>
+    </div>
+  </div>
+  <div id="legendBox"><div class="legendline" id="legend" style="margin:0 0 4px"></div>
+  <details><summary>What the statuses mean: rejected, cancelled, ready</summary><div class="note" id="statusHelp" style="margin-top:4px"></div></details></div>
+</main>
+
+<aside id="detail"><h2>Task</h2><div class="mut">Click a task (in the Gantt or the pipeline) to see its status history, links and origin. The panel is pinned on the right and does not move when the Gantt scrolls.</div></aside>
+</div>
+
+<script>
+/*COMMON_JS*/
+/*FILTERBAR_JS*/
+const DATA = __DATA__;
+const H = 3600e3, BREAK = 1.2, LABEL_W = 310, ROW = 22, AXIS = 44;
+const ST = {"cancelled":"--s-canc","rejected":"--s-rej","blocked":"--s-block","ready":"--s-ready","in progress":"--s-work","review":"--s-review","done":"--s-done"};
+const ORIGINS = ["human","orchestrator","tester","deployer"];
+const ST_ORDER = Object.keys(ST), FINAL = new Set(["done","rejected","cancelled"]), DEAD = ["rejected","cancelled"];
+const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : s;
+const pad2 = n => String(n).padStart(2,"0");
+const col = s => `var(${ST[s]||"--s-ready"})`;
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fd = ms => { const d=new Date(ms); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+" "+pad2(d.getHours())+":"+pad2(d.getMinutes()); };
+const fday = ms => { const d=new Date(ms); return d.toLocaleDateString("en-GB",{weekday:"short"})+" "+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); };
+const dec = (x,n=1)=>x.toFixed(n);
+const fh = h => h<1 ? Math.round(h*60)+" min" : h<100 ? dec(h)+" h" : dec(h/24)+" d";
+function sizeShort(t){ const z=t.size; if(!z) return "no worker commits"; return t.sizeCls==="docs"?`docs only +${z.add} −${z.del}`:`${t.sizeCls} · code +${z.codeAdd} −${z.codeDel}`; }
+function sizeFull(t){ const z=t.size; if(!z) return '<span class="mut">'+(DEAD.includes(t.status)&&t.role==="developer"?"branch deleted after "+(t.status==="cancelled"?"cancellation":"rejection")+"; size cannot be recovered":"no worker commits ([T-NNN] in the subject): testers, deployers and docs-only work")+'</span>'; return `<b>${esc(t.sizeCls)}</b> · code: +${z.codeAdd} −${z.codeDel}, ${z.codeFiles} file(s)<br><span class="mut">with docs: +${z.add} −${z.del}, ${z.files} file(s) · commits: ${z.commits}<br>S &lt; 50, M &lt; 300, L &lt; 1000, XL ≥ 1000 lines of code</span>`; }
+function snippet(t,q){ if(!t.bl||!q) return ""; const w=q.toLowerCase().split(/\s+/).filter(Boolean)[0]; if(!w) return ""; const i=t.bl.indexOf(w); if(i<0) return ""; const body=t.body, a=Math.max(0,i-70), b=Math.min(body.length,i+w.length+110); return (a>0?"…":"")+esc(body.slice(a,i))+"<mark>"+esc(body.slice(i,i+w.length))+"</mark>"+esc(body.slice(i+w.length,b))+(b<body.length?"…":""); }
+const fh2 = h => h<100 ? fh(h) : Math.round(h)+" h ("+dec(h/24)+" d)";
+
+// ---------- data ----------
+const tasks = DATA.tasks, byId = Object.fromEntries(tasks.map(t=>[t.id,t]));
+tasks.forEach(t=>{ t.c=Date.parse(t.createdAt); t.e=t.endAt?Date.parse(t.endAt):null; t.tl=t.timeline.map(([a,s])=>[Date.parse(a),s]); t.wk=(t.work||[]).map(Date.parse); t.bl=(t.body||"").toLowerCase(); });
+C.prep(DATA); // helper fields for the shared filters (links, dates)
+const edges = DATA.edges.map(e=>({...e,a:e.t0?Date.parse(e.t0):null,b:e.t1?Date.parse(e.t1):null})).filter(e=>byId[e.from]&&byId[e.to]);
+const pings = DATA.pings.map(Date.parse).sort((x,y)=>x-y);
+const commits = DATA.commits.map(([t,s])=>[Date.parse(t),s]);
+const NOW = Math.max(Date.parse(DATA.now), pings[pings.length-1]);
+const TC = Math.min(...tasks.map(t=>t.c));
+const T0 = Math.min(pings[0], ...tasks.map(t=>t.c));
+const statusAt = (t,ms)=>{ let s=null; for(const [a,st] of t.tl){ if(a<=ms) s=st; else break; } return s || t.tl[0][1]; };
+
+// ---------- state ----------
+const S = {fOwner:false, fBlocked:false, qBody:false, bg:true, dim:true, bgOp:.4, dead:true, pred:true, size:new Set(), role:new Set(), mode:"cal", gap:60, zoom:1, unit:"auto", group:"stage", view:"gantt", origin:new Set(), all:true, ended:true, succ:true, check:false, q:"", st:new Set(), stage:new Set(), tool:new Set(), sel:null, asof:NOW};
+let spans=[], total=0;
+function recompute(){
+  spans=[]; let a=pings[0], b=a;
+  for(const p of pings.slice(1)){ if(p-b<=S.gap*60000) b=p; else { spans.push({a,b}); a=p; b=p; } }
+  spans.push({a,b}); let c=0;
+  spans.forEach((s,i)=>{ s.cum=c; s.len=(s.b-s.a)/H; s.base=c+i*BREAK; c+=s.len; });
+  total=c; X0=0; X0=Xraw(TC);
+}
+function cum(t){
+  for(const s of spans){ if(t<=s.a) return s.cum; if(t<=s.b) return s.cum+(t-s.a)/H; }
+  const l=spans[spans.length-1]; return total+Math.min((t-l.b)/H, S.gap/60);
+}
+let X0=0;
+const X=t=>Xraw(t)-X0;
+function Xraw(t){ // hours on the axis
+  if(S.mode==="cal") return (t-T0)/H;
+  for(let k=0;k<spans.length;k++){
+    const s=spans[k];
+    if(t<s.a){ if(k===0) return 0; const p=spans[k-1], pe=p.base+p.len; return pe+BREAK*(t-p.b)/(s.a-p.b); }
+    if(t<=s.b) return s.base+(t-s.a)/H;
+  }
+  const l=spans[spans.length-1]; return l.base+l.len+Math.min((t-l.b)/H, BREAK);
+}
+const dur = (a,b)=> S.mode==="cal" ? (b-a)/H : cum(b)-cum(a);
+
+// ---------- timing summary ----------
+const median = a=>{ if(!a.length) return null; const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+const mean = a=>a.length? a.reduce((x,y)=>x+y,0)/a.length : null;
+const taskEnd = t => t.e ?? NOW;
+function renderSummary(){
+  const done=tasks.filter(t=>t.status==="done"), calH=(NOW-T0)/H, actH=cum(NOW)-cum(T0);
+  const days=new Set(pings.map(p=>new Date(p).toDateString())).size;
+  const ch={}; tasks.forEach(t=>(ch[t.chain]=ch[t.chain]||[]).push(t));
+  const multi=Object.values(ch).filter(a=>a.length>1);
+  const medDone=median(done.map(t=>dur(t.c,taskEnd(t))));
+  $("kpis").innerHTML=[
+    [fh2(calH),"calendar span, "+fd(T0)+" → "+fd(NOW)],
+    [fh2(cum(NOW)-cum(T0)),"active time (pauses > "+S.gap+" min not counted)"],
+    [fh2((NOW-TC)/H)+" / "+fh2(cum(NOW)-cum(TC)),"task period only (from "+fd(TC)+"): calendar / active"],
+    [days+" d","days with commits · "+pings.length+" commits"],
+    [done.length+" / "+tasks.length,"tasks done / total"],
+    [medDone==null?"—":fh(medDone),"median duration of a done task ("+(S.mode==="cal"?"calendar":"active")+")"],
+    [multi.length+"","rework chains (2+ tasks)"]
+  ].map(([b,s])=>`<div class="kpi"><b>${b}</b><span>${s}</span></div>`).join("");
+
+  const grp=(key)=>{ const m={}; tasks.forEach(t=>{ (m[t[key]]=m[t[key]]||[]).push(t); }); return m; };
+  const st=grp("stage"), rows=Object.keys(st).filter(k=>k!=="—").sort((a,b)=>a.localeCompare(b,"en",{numeric:true}));
+  $("tStage").innerHTML=`<tr><th>Stage</th><th>Tasks</th><th>Done</th><th>Start</th><th>End</th><th>Calendar</th><th>Active</th><th>Median duration</th></tr>`+rows.map(k=>{
+    const a=st[k], c0=Math.min(...a.map(t=>t.c)), c1=Math.max(...a.map(taskEnd)), d=a.filter(t=>t.status==="done"), md=median(d.map(t=>dur(t.c,taskEnd(t))));
+    return `<tr><td><b>${esc(k)}</b></td><td>${a.length}</td><td>${d.length}</td><td>${fd(c0)}</td><td>${fd(c1)}</td><td>${fh((c1-c0)/H)}</td><td>${fh(cum(c1)-cum(c0))}</td><td>${md==null?"—":fh(md)}</td></tr>`;}).join("");
+  const tl=grp("tool"), trs=Object.keys(tl).sort((a,b)=>tl[b].length-tl[a].length);
+  $("tTool").innerHTML=`<tr><th>Agent</th><th>Tasks</th><th>Done</th><th>Rejected/cancelled</th><th>Reject rate</th><th>Median duration</th><th>Mean</th></tr>`+trs.map(k=>{
+    const a=tl[k], d=a.filter(t=>t.status==="done"), bad=a.filter(t=>DEAD.includes(t.status)), ds=d.map(t=>dur(t.c,taskEnd(t)));
+    return `<tr><td><b>${esc(k)}</b></td><td>${a.length}</td><td>${d.length}</td><td>${bad.length}</td><td>${Math.round(bad.length/Math.max(1,d.length+bad.length)*100)}%</td><td>${ds.length?fh(median(ds)):"—"}</td><td>${ds.length?fh(mean(ds)):"—"}</td></tr>`;}).join("");
+  const roles=["developer","tester","deployer"], agents=[...new Set(tasks.map(t=>t.tool))].sort((a,b)=>a.localeCompare(b,"en"));
+  $("tMatrix").innerHTML=`<tr><th>Role \\ agent</th>${agents.map(a=>`<th>${esc(a)}</th>`).join("")}<th>Total</th></tr>`+roles.map(r=>{
+    const cells=agents.map(a=>{ const x=tasks.filter(t=>t.role===r&&t.tool===a); return `<td>${x.length?x.filter(t=>t.status==="done").length+" / "+x.length:"·"}</td>`; }).join("");
+    const all=tasks.filter(t=>t.role===r); return `<tr><td><b>${cap(r)}</b></td>${cells}<td>${all.filter(t=>t.status==="done").length} / ${all.length}</td></tr>`; }).join("");
+  const og=grp("origin");
+  $("tOrigin").innerHTML=`<tr><th>Origin</th><th>Tasks</th><th>Done</th><th>Rejected/cancelled</th><th>Reject rate</th><th>Median duration</th></tr>`+ORIGINS.filter(k=>og[k]).map(k=>{
+    const a=og[k], d=a.filter(t=>t.status==="done"), bad=a.filter(t=>DEAD.includes(t.status)), ds=d.map(t=>dur(t.c,taskEnd(t)));
+    return `<tr><td><b>${cap(k)}</b></td><td>${a.length}</td><td>${d.length}</td><td>${bad.length}</td><td>${Math.round(bad.length/Math.max(1,d.length+bad.length)*100)}%</td><td>${ds.length?fh(median(ds)):"—"}</td></tr>`;}).join("");
+  // where time goes: by status, done tasks
+  const sh={}; let tot=0;
+  done.forEach(t=>{ t.tl.forEach(([a,s],i)=>{ if(FINAL.has(s)) return; const from=Math.max(a,t.c), to=Math.min(t.tl[i+1]?t.tl[i+1][0]:taskEnd(t), taskEnd(t)); if(to>from){ const d=dur(from,to); sh[s]=(sh[s]||0)+d; tot+=d; } }); });
+  $("shareBars").innerHTML=ST_ORDER.filter(s=>sh[s]).map(s=>`<div class="hbar"><span>${cap(s)}</span><div class="t"><div style="width:${sh[s]/tot*100}%;background:${col(s)}"></div></div><span class="v">${Math.round(sh[s]/tot*100)}% · ${fh(sh[s])}</span></div>`).join("")||`<div class="mut">No data</div>`;
+  $("shareNote").textContent="Total time of all done tasks in each status ("+(S.mode==="cal"?"calendar":"active")+"). Ready waits to be assigned, review waits for an orchestrator decision.";
+  // active hours per day
+  const byDay={}; spans.forEach(s=>{ let a=s.a; while(a<s.b){ const d=new Date(a), nx=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime(), e=Math.min(nx,s.b), k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+"|"+fday(a); byDay[k]=(byDay[k]||0)+(e-a)/H; a=e; } });
+  const ks=Object.keys(byDay).sort(), mx=Math.max(1,...Object.values(byDay));
+  $("dayBars").innerHTML=ks.map(k=>`<div class="hbar"><span>${k.split("|")[1]}</span><div class="t"><div style="width:${byDay[k]/mx*100}%;background:var(--s-work)"></div></div><span class="v">${fh(byDay[k])}</span></div>`).join("");
+}
+
+// ---------- filters ----------
+const DIMS=C.makeDims(tasks,t=>statusAt(t,S.asof)), SEL={}; DIMS.forEach(d=>SEL[d.k]=new Set());
+function matches(t,skip){
+  if(!C.matchDims(t,DIMS,SEL,skip)) return false;
+  if(!C.flagMatch(t,{owner:S.fOwner,blocked:S.fBlocked})) return false;
+  const q=S.q.toLowerCase().split(/\s+/).filter(Boolean);
+  if(q.length){ const h=(t.id+" "+t.title+" "+t.notes).toLowerCase()+(S.qBody?" "+t.bl:""); if(!q.every(w=>h.includes(w))) return false; }
+  return true;
+}
+function visibleTasks(){ return tasks.filter(t=>matches(t)).sort((a,b)=>a.c-b.c); }
+const fb=createFilterBar({
+  bar:$("fbar"), chosen:$("fchosen"), sel:SEL,
+  dims:DIMS.map(d=>({k:d.k,l:d.l,vals:d.vals,count:v=>tasks.filter(t=>d.get(t).includes(v)&&matches(t,d.k)).length})),
+  flags:[{k:"owner",l:"Waits for human",get:()=>S.fOwner,set:v=>{S.fOwner=v;}},{k:"blocked",l:"Waits for another task",get:()=>S.fBlocked,set:v=>{S.fBlocked=v;}}],
+  search:{placeholder:"Search: id, title, notes…",get:()=>S.q,set:v=>{S.q=v.trim();}},
+  body:{get:()=>S.qBody,set:v=>{S.qBody=v;}},
+  shown:()=>`Showing ${visibleTasks().length} of ${tasks.length}`,
+  clear:()=>{DIMS.forEach(d=>SEL[d.k].clear()); S.fOwner=false; S.fBlocked=false; S.q="";},
+  onChange:()=>{ fb.render(); draw(); if(S.sel) select(S.sel); }
+});
+
+// ---------- Gantt ----------
+const UNIT = {
+  h:{px:36, hrs:1,   top:"day",  bot:"hour",  hor:0},
+  d:{px:64, hrs:24,  top:"week", bot:"day",   hor:21*24},
+  w:{px:96, hrs:168, top:"month",bot:"week",  hor:12*168},
+  m:{px:128,hrs:720, top:"year", bot:"month", hor:6*720}
+};
+function periodStart(u,ms){ const d=new Date(ms);
+  if(u==="hour") d.setMinutes(0,0,0); else { d.setHours(0,0,0,0);
+    if(u==="week") d.setDate(d.getDate()-((d.getDay()+6)%7)); else if(u==="month") d.setDate(1); else if(u==="year") d.setMonth(0,1); }
+  return d; }
+function nextPeriod(u,d){ const n=new Date(d);
+  if(u==="hour") n.setHours(n.getHours()+1); else if(u==="day") n.setDate(n.getDate()+1); else if(u==="week") n.setDate(n.getDate()+7); else if(u==="month") n.setMonth(n.getMonth()+1); else n.setFullYear(n.getFullYear()+1);
+  return n; }
+function isoWeek(d){ const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day); const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1)); return Math.ceil(((t-y0)/86400000+1)/7); }
+function tierLabel(u,d,top){
+  if(u==="hour") return pad2(d.getHours());
+  if(u==="day") return top?fday(d.getTime()):d.toLocaleDateString("en-GB",{weekday:"short"})+" "+d.getDate();
+  if(u==="week") return top?`wk ${isoWeek(d)} · ${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`:`${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  if(u==="month") return top?d.toLocaleDateString("en-GB",{month:"long",year:"numeric"}):d.toLocaleDateString("en-GB",{month:"short"});
+  return String(d.getFullYear());
+}
+// two-tier scale like MS Project: top tier is the coarse unit, bottom tier the fine one
+function tierAxis(unit,px,bodyH,tEnd,W){
+  const U=UNIT[unit]; let axis=`<line x1="0" x2="${W}" y1="21" y2="21" stroke="var(--line)"/>`, grid="";
+  [[U.top,true,15,"var(--ink)",11],[U.bot,false,35,"var(--mut)",10]].forEach(([u,top,ty,fill,fs])=>{
+    let d=periodStart(u,TC), lastX=-1e9, lastLab=-1e9, n=0;
+    while(d.getTime()<=tEnd && n++<3000){
+      const x=Math.max(0,px(d.getTime()));
+      if(x-lastX>=2){
+        grid+=`<line x1="${x}" x2="${x}" y1="0" y2="${bodyH}" stroke="var(--line)" opacity="${top?1:.4}"/>`;
+        axis+=`<line x1="${x}" x2="${x}" y1="${top?0:21}" y2="${AXIS}" stroke="var(--line)"/>`;
+        lastX=x;
+      }
+      const lab=tierLabel(u,d,top);
+      if(x-lastLab>=lab.length*fs*.6+10){ axis+=`<text x="${x+3}" y="${ty}" font-size="${fs}" style="fill:${fill}">${esc(lab)}</text>`; lastLab=x; }
+      d=nextPeriod(u,d);
+    }
+  });
+  return {axis,grid};
+}
+const EDGE_STYLE = {
+  dep:  {stroke:"var(--mut)",     dash:"",        w:1.2, op:.45},
+  dead: {stroke:"var(--s-block)", dash:"",        w:2.4, op:1},
+  succ: {stroke:"var(--s-rej)",   dash:"6 3",     w:2.6, op:1},
+  pred: {stroke:"var(--pred)",    dash:"2 3 8 3", w:2,   op:1},
+  check:{stroke:"var(--s-review)",dash:"2 3",     w:2,   op:.95},
+  ended:{stroke:"var(--s-block)", dash:"2 3",     w:1.6, op:.8}
+};
+function edgeInfo(e,asof){
+  if(e.kind==="check"&&!S.check) return null;
+  const src=e.kind==="check"?byId[e.to]:byId[e.from], dst=e.kind==="check"?byId[e.from]:byId[e.to];
+  if(dst.c>asof||src.c>asof) return null;
+  let state="on";
+  if(e.kind==="dep"){ if(e.a>asof) return null; if(e.b!=null&&e.b<=asof){ if(!S.ended) return null; state="ended"; } }
+  const srcDead=DEAD.includes(statusAt(src,asof));
+  let k="dep";
+  if(e.kind==="succ") k="succ"; else if(e.kind==="check") k="check"; else if(state==="ended") k="ended"; else if(srcDead){ if(!S.dead) return null; k="dead"; }
+  if(k==="dep"&&!S.all) return null;
+  const st=EDGE_STYLE[k];
+  return {src,dst,state,kind:k,stroke:st.stroke,dash:st.dash,w:st.w,op:st.op};
+}
+function draw(){
+  const v=S.view;
+  $("gwrap").style.display=v==="gantt"?"flex":"none"; $("board").style.display=v==="board"?"block":"none"; $("sumView").style.display=v==="sum"?"block":"none";
+  $("ganttOnly").style.opacity=v==="gantt"?1:.45; $("linesCard").style.opacity=v==="sum"?.45:1; $("legendBox").style.display=v==="sum"?"none":"block";
+  $("vGantt").classList.toggle("on",v==="gantt"); $("vBoard").classList.toggle("on",v==="board"); $("vSum").classList.toggle("on",v==="sum");
+  if(v==="gantt") drawGantt(); else if(v==="board") drawBoard();
+}
+function trunc(x,n){ return x.length>n?x.slice(0,n-1)+"…":x; }
+function drawBoard(){
+  const vis=visibleTasks().filter(t=>t.c<=S.asof), cols=ST_ORDER.map(st=>({st,items:vis.filter(t=>statusAt(t,S.asof)===st)}));
+  $("board").innerHTML=`<div id="bin">`+cols.map(c=>`<div class="bcol" style="--c:${col(c.st)}"><div class="bhead"><b>${cap(c.st)}</b> <span>${c.items.length}</span></div>`
+    +c.items.sort((a,b)=>a.c-b.c).map(t=>`<div class="bcard${S.sel===t.id?" sel":""}" data-id="${t.id}" title="${esc(t.id+" "+t.title)}"><b>${t.id}</b> ${esc(trunc(t.title,36))}<span class="bm">${esc(t.tool)} · ${esc(t.origin)} · stage ${esc(t.stage)}${t.sizeCls&&t.sizeCls!=="—"&&t.sizeCls!=="-"?" · "+esc(t.sizeCls):""}</span></div>`).join("")+`</div>`).join("")
+    +`<svg id="bsvg" width="0" height="0"><defs>`+["--mut","--s-block","--s-rej","--s-review","--pred"].map(c=>`<marker id="mk${c.slice(1)}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(${c})"/></marker>`).join("")+`</defs><g id="bsg"></g></svg><svg id="bsvg2" width="0" height="0"><g id="bsg2"></g></svg></div>`;
+  const b=$("board"); b.onmouseover=e=>{ const el=e.target.closest(".bcard"); const id=el?el.dataset.id:null; if(id!==hover){ hover=id; applyHighlight(); } };
+  b.onmouseleave=()=>{ hover=null; applyHighlight(); }; b.onclick=e=>{ const el=e.target.closest(".bcard"); if(el) select(el.dataset.id); };
+  boardEdges(); applyHighlight();
+}
+function boardEdges(){
+  const svg=$("bsvg"); if(!svg) return; const inner=$("bin"); svg.setAttribute("width",inner.scrollWidth); svg.setAttribute("height",inner.scrollHeight); const sv2=$("bsvg2"); sv2.setAttribute("width",inner.scrollWidth); sv2.setAttribute("height",inner.scrollHeight);
+  const g=$("bsg"), ir=inner.getBoundingClientRect(), pos={};
+  inner.querySelectorAll(".bcard").forEach(el=>{ const r=el.getBoundingClientRect(); pos[el.dataset.id]={l:r.left-ir.left,r:r.right-ir.left,y:(r.top+r.bottom)/2-ir.top}; });
+  const MK={"var(--mut)":"mk-mut","var(--s-block)":"mk-s-block","var(--s-rej)":"mk-s-rej","var(--s-review)":"mk-s-review","var(--pred)":"mk-pred"};
+  const curve=(from,to,off)=>{ const dx=50, fy=from.y+off, ty=to.y+off;
+    if(to.l>=from.r) return `M${from.r},${fy} C${from.r+dx},${fy} ${to.l-dx},${ty} ${to.l},${ty}`;
+    if(to.r<=from.l) return `M${from.l},${fy} C${from.l-dx},${fy} ${to.r+dx},${ty} ${to.r},${ty}`;
+    return `M${from.l},${fy} C${from.l-40},${fy} ${to.l-40},${ty} ${to.l},${ty}`; };
+  const mk=(e,from,to,st,off)=>`<g class="edge" data-f="${e.kind==="check"?e.to:e.from}" data-t="${e.kind==="check"?e.from:e.to}" data-op="${st.op}"><path d="${curve(from,to,off)}" fill="none" stroke="${st.stroke}" stroke-width="${st.w}" stroke-dasharray="${st.dash}" marker-end="url(#${MK[st.stroke]||"mk-mut"})"/></g>`;
+  let plain="", color="";
+  edges.forEach(e=>{
+    const info=edgeInfo(e,S.asof); if(!info) return;
+    const from=pos[info.src.id], to=pos[info.dst.id]; if(!from||!to) return;
+    if(e.kind==="succ"){
+      if(S.succ) color+=mk(e,from,to,EDGE_STYLE.succ,0);
+      if(S.pred) color+=mk(e,to,from,EDGE_STYLE.pred,5); // reverse link: from the replacing task to the replaced one, offset
+      return;
+    }
+    const st=EDGE_STYLE[info.kind];
+    if(info.kind==="dep") plain+=mk(e,from,to,st,0); else color+=mk(e,from,to,st,0);
+  });
+  g.innerHTML=plain+color;
+}
+let model=null;
+function drawGantt(){
+  const vis=visibleTasks(), asof=S.asof;
+  // rows
+  const items=[]; const push=t=>items.push({type:"t",t});
+  if(S.group==="time") vis.forEach(push);
+  else if(S.group==="chain"){
+    const m={}; vis.forEach(t=>(m[t.chain]=m[t.chain]||[]).push(t));
+    const multi=Object.values(m).filter(a=>a.length>1).sort((a,b)=>a[0].c-b[0].c), single=Object.values(m).filter(a=>a.length===1).flat().sort((a,b)=>a.c-b.c);
+    multi.forEach(a=>{ items.push({type:"g",label:"Chain: "+a.map(t=>t.id).join(" → ")+" ("+a.length+")"}); a.forEach(push); });
+    if(single.length){ items.push({type:"g",label:"No rework ("+single.length+")"}); single.forEach(push); }
+  } else if(S.group==="status"||S.group==="origin"){
+    const isS=S.group==="status", order=isS?ST_ORDER:ORIGINS, m={}; vis.forEach(t=>{ const k=isS?statusAt(t,asof):t.origin; (m[k]=m[k]||[]).push(t); });
+    order.filter(k=>m[k]).forEach(k=>{ items.push({type:"g",label:(isS?"":"Origin: ")+cap(k)+" ("+m[k].length+")"}); m[k].forEach(push); });
+  } else {
+    const key=S.group, m={}; vis.forEach(t=>(m[t[key]]=m[t[key]]||[]).push(t));
+    Object.keys(m).sort((a,b)=>a.localeCompare(b,"en",{numeric:true})).forEach(k=>{ items.push({type:"g",label:(key==="stage"?"Stage ":"")+(key==="role"?cap(k):k)+" ("+m[k].length+")"}); m[k].forEach(push); });
+  }
+  let y=0; const pos={};
+  items.forEach(it=>{ it.y=y; y+=ROW; if(it.type==="t") pos[it.t.id]=it; });
+  const bodyH=Math.max(y,ROW);
+  const gr=$("gr"), availW=Math.max(400,gr.clientWidth-24);
+  const U=S.unit==="auto"?null:UNIT[S.unit];
+  let xmax=Math.max(1,X(NOW)), pph;
+  if(!U) pph=availW/xmax*S.zoom; else { pph=U.px/U.hrs*S.zoom; if(S.mode==="cal") xmax=Math.max(xmax,U.hor); }
+  const W=xmax*pph+20;
+  const px=t=>X(t)*pph;
+  // axis and pause bands
+  let axis="", grid="", bands="";
+  for(let k=1;k<spans.length;k++){ const x2=px(spans[k].a); if(x2<=0) continue; const x1=Math.max(0,px(spans[k-1].b)); if(x2-x1>1) bands+=`<rect x="${x1}" y="0" width="${x2-x1}" height="${bodyH}" fill="var(--band)" opacity=".7"/>`; if(!U&&x2-x1>34) axis+=`<text x="${(x1+x2)/2}" y="38" font-size="10" text-anchor="middle" fill="var(--mut)" style="fill:var(--mut)">pause ${fh((spans[k].a-spans[k-1].b)/H)}</text>`; }
+  if(U){
+    if(S.mode==="cal"&&px(NOW)+3<W-20) bands+=`<rect x="${px(NOW)}" y="0" width="${W-20-px(NOW)}" height="${bodyH}" fill="var(--band)" opacity=".35"/>`;
+    const T=tierAxis(S.unit,px,bodyH,S.mode==="cal"?TC+xmax*H:NOW,W); axis+=T.axis; grid+=T.grid;
+  } else if(S.mode==="cal"){
+    const d0=new Date(TC); d0.setHours(0,0,0,0);
+    for(let d=d0.getTime(); d<=NOW; d+=24*H){ const x=Math.max(0,px(Math.max(d,TC))); grid+=`<line x1="${x}" x2="${x}" y1="0" y2="${bodyH}" stroke="var(--line)"/>`; axis+=`<text x="${x+3}" y="14" font-size="11" style="fill:var(--ink)">${fday(d)}</text>`;
+      if(S.zoom>=2) for(let h=6;h<24;h+=6){ const xx=px(d+h*H); if(d+h*H>TC&&d+h*H<NOW){ grid+=`<line x1="${xx}" x2="${xx}" y1="0" y2="${bodyH}" stroke="var(--line)" opacity=".4"/>`; axis+=`<text x="${xx+2}" y="28" font-size="10" style="fill:var(--mut)">${h}:00</text>`; } } }
+  } else {
+    let last=""; spans.forEach(s=>{ if(s.b<TC) return; const k=new Date(s.a).toDateString(); if(k!==last){ last=k; const x=Math.max(0,px(s.a)); grid+=`<line x1="${x}" x2="${x}" y1="0" y2="${bodyH}" stroke="var(--line)"/>`; axis+=`<text x="${x+3}" y="14" font-size="11" style="fill:var(--ink)">${fday(s.a)}</text>`; } });
+    if(S.zoom>=2) spans.forEach(s=>{ if(s.b<TC) return; const x=Math.max(0,px(s.a)); axis+=`<text x="${x+2}" y="28" font-size="10" style="fill:var(--mut)">${new Date(s.a).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</text>`; });
+  }
+  const asX=px(Math.min(asof,NOW));
+  // task bars
+  let bars="", rowsBg="", labels="";
+  items.forEach((it,i)=>{
+    if(it.type==="g"){ rowsBg+=`<rect x="0" y="${it.y}" width="${W}" height="${ROW}" fill="var(--chip)" opacity=".8"/>`; labels+=`<g class="grp"><rect x="0" y="${it.y}" width="${LABEL_W}" height="${ROW}" fill="var(--chip)"/><text x="8" y="${it.y+15}" font-size="12">${esc(it.label.length>52?it.label.slice(0,51)+"…":it.label)}</text></g>`; return; }
+    const t=it.t, future=t.c>asof, cy=it.y+ROW/2;
+    rowsBg+=`<rect class="rb" data-id="${t.id}" x="0" y="${it.y}" width="${W}" height="${ROW}" fill="transparent"/><line x1="0" x2="${W}" y1="${it.y+ROW}" y2="${it.y+ROW}" stroke="var(--line)" opacity=".5"/>`;
+    const sNow=statusAt(t,asof);
+    const title=t.id+" "+t.title.replace(/"/g,"'");
+    let g=`<text class="lbl${future?" future":""}" data-id="${t.id}" x="8" y="${it.y+15}" font-size="12"><tspan style="fill:var(--mut)">${t.id}</tspan> ${esc(t.title.length>40?t.title.slice(0,39)+"…":t.title)}</text><circle cx="${LABEL_W-12}" cy="${cy}" r="4" fill="${future?"transparent":col(sNow)}"/>`;
+    labels+=`<g data-id="${t.id}">${g}<title>${esc(title)}</title></g>`;
+    if(future) return;
+    const cutoff=Math.min(asof, t.e??NOW), endClosed=t.e!=null&&t.e<=asof;
+    let b="";
+    t.tl.forEach(([a,s],j)=>{ if(FINAL.has(s)) return; const from=Math.max(a,t.c), nxt=t.tl[j+1]?t.tl[j+1][0]:Infinity, to=Math.min(nxt,cutoff); if(to<=from&&!(j===t.tl.length-1&&to===from)) return; const x1=px(from), x2=Math.max(px(to),x1+(to>from?1.5:0)); b+=`<rect x="${x1}" y="${it.y+5}" width="${x2-x1}" height="${ROW-10}" fill="${col(s)}" rx="2"/>`; });
+    const xe=px(cutoff);
+    if(endClosed){ const fs=statusAt(t,asof); b+=`<rect x="${xe-1}" y="${it.y+3}" width="5" height="${ROW-6}" fill="${col(fs)}" rx="1"/>`; if(DEAD.includes(fs)) b+=`<line x1="${px(t.c)}" x2="${xe}" y1="${cy}" y2="${cy}" stroke="${col(fs)}" stroke-width="1" opacity=".5"/>`; }
+    t.wk.forEach(w=>{ if(w<=asof){ const xw=px(w); b+=`<line x1="${xw}" x2="${xw}" y1="${it.y+3}" y2="${it.y+ROW-3}" stroke="var(--panel)" stroke-width="4"/><line x1="${xw}" x2="${xw}" y1="${it.y+3}" y2="${it.y+ROW-3}" stroke="var(--ink)" stroke-width="2"/>`; } });
+    const tip=`${title}\nCreated: ${fd(t.c)}\n${t.e!=null?"Closed: "+fd(t.e)+" ("+fh(dur(t.c,t.e))+")":"Open for "+fh(dur(t.c,NOW))}\nStatus: ${cap(sNow)}\nChanges: ${sizeShort(t)}`;
+    bars+=`<g class="bar" data-id="${t.id}" style="cursor:pointer">${b}<title>${esc(tip)}</title></g>`;
+  });
+  // links: grey drawn first, coloured on top
+  let ega="", egc="";
+  edges.forEach(e=>{
+    const info=edgeInfo(e,asof); if(!info) return;
+    const {src,dst,state,stroke,dash,w,op}=info;
+    if(!pos[src.id]||!pos[dst.id]) return;
+    const sEnd=Math.min(asof, src.e??NOW), x1=px(sEnd)+(src.e!=null&&src.e<=asof?4:0), y1=pos[src.id].y+ROW/2, x2=px(dst.c), y2=pos[dst.id].y+ROW/2;
+    const arrow=(x,y,c)=>`<polygon points="${x},${y} ${x-7},${y-4} ${x-7},${y+4}" fill="${c}"/>`;
+    if(e.kind==="succ"){
+      if(S.succ){ // successor: from the end of the cancelled/rejected task to the start of the new one
+        let d; if(x2>=x1+8){ const dx=Math.min(60,(x2-x1)/2); d=`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`; } else { const ym=(y1+y2)/2; d=`M${x1},${y1} L${x1+8},${y1} L${x1+8},${ym} L${x2-8},${ym} L${x2-8},${y2} L${x2},${y2}`; }
+        egc+=`<g class="edge" data-f="${src.id}" data-t="${dst.id}" data-op="${op}" style="opacity:${op}"><path d="${d}" stroke="${stroke}" stroke-width="${w}" stroke-dasharray="${dash}" fill="none"/>${arrow(x2,y2,stroke)}</g>`;
+      }
+      if(S.pred){ // predecessor: bracket left of the new task start to the start of the replaced one
+        const xp=px(src.c), xl=Math.max(2,Math.min(xp,x2)-9);
+        egc+=`<g class="edge" data-f="${src.id}" data-t="${dst.id}" data-op="${EDGE_STYLE.pred.op}" style="opacity:${EDGE_STYLE.pred.op}"><path d="M${x2},${y2} L${xl},${y2} L${xl},${y1} L${xp},${y1}" stroke="${EDGE_STYLE.pred.stroke}" stroke-width="${EDGE_STYLE.pred.w}" stroke-dasharray="${EDGE_STYLE.pred.dash}" fill="none"/>${arrow(xp,y1,EDGE_STYLE.pred.stroke)}</g>`;
+      }
+      return;
+    }
+    const plain=stroke==="var(--mut)";
+    let d; if(x2>=x1+8){ const dx=Math.min(60,(x2-x1)/2); d=`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`; }
+    else { const ym=(y1+y2)/2; d=`M${x1},${y1} L${x1+8},${y1} L${x1+8},${ym} L${x2-8},${ym} L${x2-8},${y2} L${x2},${y2}`; }
+    const g=`<g class="edge" data-f="${src.id}" data-t="${dst.id}" data-op="${op}" style="opacity:${op}"><path d="${d}" stroke="${stroke}" stroke-width="${w}" stroke-dasharray="${dash}" fill="none"/>${arrow(x2,y2,stroke)}</g>`;
+    if(plain) ega+=g; else egc+=g;
+  });
+  const eg=ega+egc;
+  const asLine=asof<NOW?`<line x1="${asX}" x2="${asX}" y1="0" y2="${bodyH}" stroke="var(--accent)" stroke-width="2"/>`:"";
+  const nowLine=`<line x1="${px(NOW)}" x2="${px(NOW)}" y1="0" y2="${bodyH}" stroke="var(--s-done)" stroke-dasharray="3 3" opacity=".7"/>`;
+  gr.innerHTML=`<svg id="ga" width="${W}" height="${AXIS}">${axis}<line x1="0" x2="${W}" y1="${AXIS-1}" y2="${AXIS-1}" stroke="var(--line)"/>${asof<NOW?`<text x="${asX+4}" y="${AXIS-4}" font-size="10" style="fill:var(--accent)">${fd(asof)}</text>`:""}</svg>
+    <svg id="gb" width="${W}" height="${bodyH}" style="display:block">${bands}${grid}${rowsBg}${nowLine}${eg}${bars}<g id="gtop"></g>${asLine}</svg>`;
+  $("gl").innerHTML=`<div id="glh">Task · dot colour is the status at the selected moment</div><svg width="${LABEL_W}" height="${bodyH+AXIS}" style="display:block"><g transform="translate(0,${AXIS})">${labels}</g></svg>`;
+  // sync scroll and height
+  $("gl").style.width=LABEL_W+"px"; $("gl").style.height=gr.clientHeight+"px";
+  gr.onscroll=()=>{ $("gl").scrollTop=gr.scrollTop; };
+  model={pos};
+  bindGantt(); applyHighlight();
+}
+
+let hover=null;
+function bindGantt(){
+  const root=document;
+  const hov=e=>{ const el=e.target.closest("[data-id]"); const id=el?el.dataset.id:null; if(id!==hover){ hover=id; applyHighlight(); } };
+  ["gb","gl"].forEach(id=>{ const n=$(id); n.onmouseover=hov; n.onmouseleave=()=>{ hover=null; applyHighlight(); }; n.onclick=e=>{ const el=e.target.closest("[data-id]"); if(el) select(el.dataset.id); }; });
+}
+function restyleEdges(){
+  const id=hover||S.sel, board=S.view==="board", top=board?$("bsg2"):$("gtop"), root=board?$("bsg"):$("gb");
+  document.querySelectorAll(".hlclone").forEach(n=>n.remove());
+  if(!root) return;
+  root.querySelectorAll(".edge").forEach(g=>{
+    const base=+g.dataset.op, hl=id&&(g.dataset.f===id||g.dataset.t===id);
+    g.style.opacity=hl?0:(!S.bg?0:base*S.bgOp*(id&&S.dim?0.22:1));
+    if(hl&&top){ // highlighted link: a copy in the top layer, above cards and bars
+      const c=g.cloneNode(true); c.classList.add("hlclone"); c.style.opacity=1;
+      const pth=c.querySelector("path"); pth.style.strokeWidth=(+pth.getAttribute("stroke-width")+0.9);
+      top.appendChild(c);
+    }
+  });
+}
+function applyHighlight(){
+  const id=hover||S.sel;
+  restyleEdges();
+  if(S.view==="board"){ document.querySelectorAll(".bcard").forEach(c=>c.classList.toggle("sel",c.dataset.id===S.sel)); return; }
+  document.querySelectorAll("#gb .rb").forEach(r=>{ r.setAttribute("fill", r.dataset.id===id?"var(--accent)":"transparent"); r.setAttribute("opacity", r.dataset.id===id?".12":"1"); });
+}
+
+// ---------- task card ----------
+function select(id){
+  S.sel=id; applyHighlight();
+  const t=byId[id]; if(!t) return;
+  const ctx={byId,edges,NOW,dur,calDur:(a,b)=>(b-a)/H,actDur:(a,b)=>cum(b)-cum(a),query:S.q,qBody:S.qBody};
+  $("detail").innerHTML=C.taskCard(t,ctx); C.bindCard($("detail"),select);
+}
+
+// ---------- "as of" slider ----------
+const pts=commits.map(c=>c[0]); pts.push(NOW);
+function setAsof(i){
+  i=Math.max(0,Math.min(pts.length-1,i)); $("asof").value=i; S.asof=pts[i];
+  const sub=i<commits.length?commits[i][1]:"now";
+  $("asofLbl").textContent=(i===pts.length-1?"Now · ":fd(pts[i])+" · ledger change: ")+(i===pts.length-1?fd(NOW):sub);
+  fb.render(); draw(); if(S.sel) select(S.sel);
+}
+
+// ---------- events ----------
+function setMode(m){ S.mode=m; $("mCal").classList.toggle("on",m==="cal"); $("mAct").classList.toggle("on",m==="act"); refresh(); }
+function updateUnitInfo(){
+  const calH=(NOW-TC)/H, actH=cum(NOW)-cum(TC);
+  $("unitInfo").innerHTML=`Since the first task: <b>${fh(calH)}</b> calendar = ${dec(calH/24)} d = ${dec(calH/168)} wk = ${dec(calH/720,2)} mo.<br>Active: <b>${fh(actH)}</b>.`+(S.unit!=="auto"&&S.mode==="act"?"<br>In \"No pauses\" mode nights and idle time are compressed: axis units are calendar, width is active time.":"");
+}
+function syncUnit(){ document.querySelectorAll("#unitBtns button").forEach(b=>b.classList.toggle("on",b.dataset.u===S.unit)); }
+function refresh(){ recompute(); renderSummary(); updateUnitInfo(); draw(); if(S.sel) select(S.sel); }
+$("mCal").onclick=()=>setMode("cal"); $("mAct").onclick=()=>setMode("act");
+$("gap").oninput=e=>{ S.gap=+e.target.value; $("gapV").textContent=S.gap+" min"; refresh(); };
+$("oBg").onchange=e=>{ S.bg=e.target.checked; restyleEdges(); };
+$("oDim").onchange=e=>{ S.dim=e.target.checked; restyleEdges(); };
+$("bgOp").oninput=e=>{ S.bgOp=+e.target.value/100; $("bgOpV").textContent=e.target.value+"%"; restyleEdges(); };
+document.querySelectorAll("#unitBtns button").forEach(b=>b.onclick=()=>{ S.unit=b.dataset.u; syncUnit(); updateUnitInfo(); draw(); });
+function syncZoom(){ document.querySelectorAll("#zoomBtns button").forEach(b=>b.classList.toggle("on",+b.dataset.z===S.zoom)); }
+document.querySelectorAll("#zoomBtns button").forEach(b=>b.onclick=()=>{ S.zoom=+b.dataset.z; syncZoom(); draw(); });
+function syncGroup(){ document.querySelectorAll("#groupBtns button").forEach(b=>b.classList.toggle("on",b.dataset.g===S.group)); $("group").value=["chain","tool","role","origin"].includes(S.group)?S.group:""; }
+document.querySelectorAll("#groupBtns button").forEach(b=>b.onclick=()=>{ S.group=b.dataset.g; syncGroup(); draw(); });
+$("group").onchange=e=>{ if(!e.target.value) return; S.group=e.target.value; syncGroup(); draw(); };
+$("vGantt").onclick=()=>{ S.view="gantt"; draw(); };
+$("vBoard").onclick=()=>{ S.view="board"; draw(); };
+$("vSum").onclick=()=>{ S.view="sum"; draw(); };
+$("zoom").onchange=e=>{ S.zoom=+e.target.value; draw(); };
+[["oAll","all"],["oEnded","ended"],["oSucc","succ"],["oCheck","check"],["oDead","dead"],["oPred","pred"]].forEach(([id,k])=>$(id).onchange=e=>{ S[k]=e.target.checked; draw(); });
+$("asof").max=pts.length-1; $("asof").value=pts.length-1;
+$("asof").oninput=e=>setAsof(+e.target.value);
+$("prev").onclick=()=>setAsof(+$("asof").value-1); $("next").onclick=()=>setAsof(+$("asof").value+1);
+$("nowBtn").onclick=()=>setAsof(pts.length-1);
+let timer=null;
+$("play").onclick=()=>{ if(timer){ clearInterval(timer); timer=null; $("play").textContent="▶ Play"; return; }
+  if(+$("asof").value>=pts.length-1) setAsof(0);
+  $("play").textContent="❚❚ Stop"; timer=setInterval(()=>{ const i=+$("asof").value+1; if(i>=pts.length){ clearInterval(timer); timer=null; $("play").textContent="▶ Play"; return; } setAsof(i); },350); };
+const cnt={dep:0,ended:0,dead:0,succ:0,check:0};
+edges.forEach(e=>{ if(e.kind==="succ") cnt.succ++; else if(e.kind==="check") cnt.check++; else if(e.b!=null) cnt.ended++; else if(DEAD.includes(statusAt(byId[e.from],NOW))) cnt.dead++; else cnt.dep++; });
+document.querySelectorAll("svg.ls").forEach(sv=>{ const st=EDGE_STYLE[sv.dataset.k]; sv.innerHTML=`<line x1="1" x2="26" y1="6" y2="6" stroke="${st.stroke}" stroke-width="${st.w}" stroke-dasharray="${st.dash}" opacity="${st.op}"/><polygon points="33,6 26,2.5 26,9.5" fill="${st.stroke}" opacity="${st.op}"/>`; });
+$("cDep").textContent=cnt.dep; $("cDead").textContent=cnt.dead; $("cSucc").textContent=cnt.succ; $("cPred").textContent=cnt.succ; $("cCheck").textContent=cnt.check; $("cEnded").textContent=cnt.ended;
+$("legend").innerHTML=ST_ORDER.map(s=>`<span><i style="background:${col(s)}"></i>${cap(s)}</span>`).join("")
+  +`<span><i style="background:none;border-left:2px solid var(--ink);height:10px;width:0;border-radius:0"></i>tick on a bar: worker commit</span>`;
+$("statusHelp").innerHTML="<b>Rejected</b>: the work was delivered but acceptance failed (the check failed or the result is unreliable); a successor task is issued for it. <b>Cancelled</b>: the task was stopped by a decision before acceptance (no longer needed, replaced, or a duplicate); nothing to accept. <b>Ready</b>: the Task File is ready, the worker has not started yet. Statuses run left to right / top to bottom from rejections to acceptance (<b>Done</b> = merged).";
+C.initHeader("gantt", DATA.generated, DATA.project);
+window.addEventListener("resize",()=>draw());
+fb.render(); syncZoom(); syncGroup(); syncUnit(); setMode("act"); setAsof(pts.length-1);
+</script>
+</body>
+</html>

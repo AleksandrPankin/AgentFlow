@@ -27,7 +27,7 @@ This file is the single source of truth. Entry points (`AGENTS.md`, `CLAUDE.md`,
 - `state/tasks.md` - Task Ledger, edited only with `python tools/ledger.py`.
 - `docs/project-plan.md` - roadmap: stages with Exit criteria and state.
 - `runbook/` - verified steps only ([Updating the runbook](#section-updating-the-runbook)); `screenshots/` - images linked from it.
-- `roles/`, `tasks/_template.md`, `tools/` (launcher `run-task.ps1`, gates `gate.py`, ledger `ledger.py`) - template-owned ([Installing or updating AgentFlow](#section-installing-or-updating-agentflow)); change them only to fix the template itself.
+- `roles/`, `tasks/_template.md`, `tools/` (launcher `run-task.ps1`, gates `gate.py`, ledger `ledger.py`), `dashboard/` (the human's read-only view) - template-owned ([Installing or updating AgentFlow](#section-installing-or-updating-agentflow)); change them only to fix the template itself.
 - `tasks/T-NNN-slug.md` - Task Files.
 
 ### Planning levels
@@ -231,11 +231,20 @@ Who: Single Mode or the Orchestrator, only after a step is confirmed to work; th
 
 End of session (Single Mode or Orchestrator): Updating the runbook (if a verified step changed), Updating memory, Handoff. A worker session ends with its Result.
 
+## Section: Dashboard
+
+For the human, not for agents: a read-only view of the ledger, Task Files, and git history. `python dashboard/build.py` writes `dashboard/out/index.html` (task table, filters, task card) and `out/graph.html` (Gantt, timeline, links). Any session or the human may run it; it changes nothing outside `dashboard/out/`.
+
+1. It shows what the files say and invents nothing. Statuses, roles, and outcomes use this protocol's words; the ledger `Status`, the worker's `Outcome`, and the tester's `Verdict` stay three separate fields. A field it cannot read is empty or "Not set", never a guess; a value it estimates (who set the task) is labeled as an estimate.
+2. `dashboard/` is template-owned: change it only to fix the template or on the human's request. Rules for changing it: `dashboard/UI-RULES.md`; before a noticeable change `python dashboard/snapshot.py save "<what>"`, roll back with `restore vN`. `dashboard/out/` and `dashboard/versions/` are local and git-ignored.
+3. Changing a state or field name in this protocol means updating the data contract in `dashboard/README.md` and `dashboard/build.py` in the same commit.
+4. The Orchestrator does not read the dashboard to decide: the ledger and `gate.py verify` are the evidence.
+
 ## Section: Installing or updating AgentFlow
 
 Who: a Single Mode session, on the human's request. Version: `AgentFlow version:` in `AGENTS.md`.
 
-- Template-owned, replaced on update: `AGENTS.md` above `## Project rules`, `CLAUDE.md`, `.claude/commands/`, this file, `roles/`, `tasks/_template.md`, `tools/`.
+- Template-owned, replaced on update: `AGENTS.md` above `## Project rules`, `CLAUDE.md`, `.claude/commands/`, this file, `roles/`, `tasks/_template.md`, `tools/`, `dashboard/`.
 - Project-owned, never overwritten: everything else (`state/`, `docs/project-plan.md`, `runbook/`, `screenshots/`, Task Files, Project rules).
 - Template-only, never copied: `README.md`, `GUIDE.md`, `CHANGELOG.md`, `LICENSE`, the template's own `state/` and `docs/project-plan.md`.
 - A project rule never goes into a template-owned file, only into Project rules.

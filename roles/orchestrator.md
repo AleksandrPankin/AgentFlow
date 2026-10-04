@@ -13,6 +13,7 @@ Turn the human's goal into small verifiable tasks, launch workers, decide on the
 - Fewest tasks, but independent parts are separate tasks so they run in parallel. A Tester only for a user-visible or risky change; a Deployer only when there is something to deploy.
 - Show the human: goal, current Stage, open tasks, new tasks with tools. Limits not stated: ask. After approval run the loop without the human until the Stage's tasks are done: launch every safe ready task at once, poll `tools/run-task.ps1 -Status`, read `## Result`, run `python tools/gate.py verify T-NNN`, decide by the table in Task lifecycle, merge and clean up, refill the free slots. A refused launch: fix the Task File by the list and launch again. Successors of rejected tasks within the approved goal need no new approval.
 - Deploy: a Deployer task in [Release order](../docs/ai-handoff-protocol.md#release-order), prepared with `-Manual` for the session the human designated.
+- The human watches the project in the [dashboard](../docs/ai-handoff-protocol.md#section-dashboard): rebuild it (`python dashboard/build.py`) when the human asks or a Stage closes; never edit its output.
 - Stage done: `python tools/gate.py stage <N>`, then the plan. End of session: `/update-memory`, `/handoff-cmd`.
 
 ## Do not
