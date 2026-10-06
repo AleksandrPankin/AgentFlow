@@ -241,6 +241,8 @@ Answered by the human 2026-10-06:
 2. Layout for 3.0.0: all AgentFlow files including `state/` and `tasks/` inside `.agentflow/` (section 6.1).
 3. Reasoning effort: add `Effort:` to 2.3.0 where the vendor documentation recommends it (section 5).
 
+Considered, not taken (2026-10-07): a fast classifier model with confidence scores (TypeSafe "Jeff", OpenRouter `typesafe/jev-router`, OpenAI Decisions API, per a video the human shared; claims not verified). Not for the template core: Result detection, preflight, and tier choice must stay deterministic, free, and offline, and the workers are CLI subscriptions, not OpenRouter. The router picks the cheapest adequate model, not the strongest, which conflicts with "strong" for risky code. Possible later as an optional advisory guard on `## Checks` commands, never instead of the deny rules. Better fit: project-level classification (for example Calbot message routing), decided in that project.
+
 Open:
 4. REMINDER for the human: ask the colleague where his `launch.ps1` and `tests/` come from and whether `tests/` belongs in the template. Blocks 3.0.0 only.
 5. Whether `-Cleanup` should also remove the worktree and branch (today the Orchestrator does it by Git rule 6).
