@@ -2,6 +2,16 @@
 
 What changed in each AgentFlow version. Why it changed: `state/decisions.md`. The version of an installed project: `AgentFlow version:` in its `AGENTS.md`.
 
+## 2.3.0 - 2026-10-06
+
+- Task File fields `Model: default | small | standard | strong | <id>` and `Effort: default | low | medium | high | xhigh | max`. New `tools/models.json` maps tiers to each tool's model and lists the accepted ids and efforts (`verifiedAt`); per-machine override `AGENTFLOW_MODEL_<TOOL>_<TIER>`. No model id in the scripts.
+- Launcher passes the tool's own flags (claude `--model` / `--effort`, codex `-m` / `-c model_reasoning_effort=...` replacing the same keys in `AGENTFLOW_CODEX_ARGS`, agy `--model` / `--effort`); absent or `default` = no flag, the command line as in 2.2.0. The resolved model and effort are recorded per attempt and shown in the launch line and `-Status`.
+- Preflight refuses an unknown tier, an id the table does not list for the launch tool, an unknown effort, or an effort on a model without one (Haiku 4.5), with the valid values.
+- `run-task.ps1 -Limits`: the last usage-limit hit per tool with its log line (`limitText`, usually the reset time).
+- Tool routing: section "Choosing the model" (tier table, task kinds, rules, sources). Protocol: Launching workers rule 6 (the model is part of the launch). Orchestrator fills `Model:` and `Effort:`. GUIDE: how tiers and overrides work.
+
+Migration from 2.2.x: copy `tools/` (with `models.json`), `roles/`, `tasks/_template.md`, `docs/ai-handoff-protocol.md`, `GUIDE.md`. Existing Task Files need no change (no `Model:` line = as before).
+
 ## 2.2.0 - 2026-10-06
 
 - `tools/run-task.ps1 -Wait [T-NNN,...] [-PollSec 30] [-TimeoutMin N] [-GraceSec 20]`: blocks until a task finishes and prints one line (`T-NNN finished: attempt=... result=... Change|Verdict|Deployment=...`); no model, no network. Exit 0 finished, 3 timeout, 4 nothing to wait for. The Orchestrator runs it in the host tool's background mode and is woken when it exits, instead of polling `-Status`.

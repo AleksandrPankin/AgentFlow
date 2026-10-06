@@ -1,6 +1,6 @@
 # Implementation Plan: 2.2.0, 2.3.0, 3.0.0
 
-Status: draft for the human's approval, 2026-10-06. Template-owned working document (not copied into projects). Once a release ships, its section is deleted and the result goes to `CHANGELOG.md` and `state/decisions.md`.
+Status: 2.2.0 and 2.3.0 implemented on `release/2.3.0` (2026-10-06), not merged; 3.0.0 open. Template-owned working document (not copied into projects). Once a release ships, its section is deleted and the result goes to `CHANGELOG.md` and `state/decisions.md`.
 
 Inputs: `requests/2026-10-06-orchestrator-wake-on-worker-finish.md` (with its addendum), `requests/2026-10-06-per-task-model-selection.md` (both from project Calbot), the human's messages of 2026-10-06, and the `.agentflow/` layout proposed by a colleague (screenshots in the chat, no file source).
 

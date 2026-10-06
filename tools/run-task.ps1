@@ -6,6 +6,7 @@
   tools\run-task.ps1 T-007 codex          # launch a developer or tester task in a visible window
   tools\run-task.ps1 T-007 -Manual        # same gate and preparation, no process: a human starts the tool
   tools\run-task.ps1 -Status              # process state of the last attempt of every task
+  tools\run-task.ps1 -Limits              # last usage-limit hit per tool, with the log line
   tools\run-task.ps1 -Wait [T-007,T-008]  # block until a task finishes (no ids: every running one), print one line
   tools\run-task.ps1 T-007 -Stop          # end a worker (whole process tree), release the lock
   tools\run-task.ps1 T-007 -MarkFinished  # a manual attempt has finished
@@ -26,6 +27,7 @@ param(
   [Parameter(Position = 0)][string]$TaskId,
   [Parameter(Position = 1)][ValidateSet('codex', 'claude', 'agy')][string]$Tool,
   [switch]$Status,
+  [switch]$Limits,
   [switch]$Wait,
   [int]$PollSec = 30,
   [int]$TimeoutMin = 0,
@@ -53,15 +55,29 @@ $codexArgs = @(if ($env:AGENTFLOW_CODEX_ARGS) { $env:AGENTFLOW_CODEX_ARGS.Trim()
 # Interactive tools (pipe = $false) keep the window until a human exits them; the log is a transcript.
 # Tester: review isolation. It runs in a disposable checkout; codex is sandboxed to it plus the main tasks\
 # folder (for its "## Result"); claude cannot be sandboxed, so the end-of-attempt check catches changes.
+# Model and effort ($l = the task's resolved launch: tools/models.json via gate.py) are added only when the Task File
+# sets them: no Model / Effort line = the tool's own default, the command line as before.
+function Get-CodexArgs($l) {   # AGENTFLOW_CODEX_ARGS without the model / effort the task sets itself (the task wins)
+  $out = [Collections.Generic.List[string]]::new()
+  for ($i = 0; $i -lt $codexArgs.Count; $i++) {
+    $x = $codexArgs[$i]
+    if ($l.model -and $x -in '-m', '--model') { $i++; continue }
+    if ($l.model -and $x -like '--model=*') { continue }
+    if ($l.effort -and $x -in '-c', '--config' -and $codexArgs[$i + 1] -like 'model_reasoning_effort=*') { $i++; continue }
+    $out.Add($x)
+  }
+  @($out) + @(if ($l.model) { '-m', $l.model }) + @(if ($l.effort) { '-c', "model_reasoning_effort=`"$($l.effort)`"" })
+}
+function Get-ModelArgs($l) { @(if ($l.model) { '--model', $l.model }) + @(if ($l.effort) { '--effort', $l.effort }) }   # claude, agy
 $Tools = @{
   codex  = @{ exe = $codexExe; pipe = $true
-              args = { param($p, $r)
-                if ($r -eq 'developer') { @('exec') + $codexArgs + @('--sandbox', 'danger-full-access', $p) }
-                else { @('exec') + $codexArgs + @('--sandbox', 'workspace-write', '--add-dir', (Join-Path $root 'tasks'), '-c', 'sandbox_workspace_write.network_access=true', $p) } } }
+              args = { param($p, $r, $l)
+                if ($r -eq 'developer') { @('exec') + (Get-CodexArgs $l) + @('--sandbox', 'danger-full-access', $p) }
+                else { @('exec') + (Get-CodexArgs $l) + @('--sandbox', 'workspace-write', '--add-dir', (Join-Path $root 'tasks'), '-c', 'sandbox_workspace_write.network_access=true', $p) } } }
   claude = @{ exe = 'claude'; pipe = $true   # -p prints the answer only at the end
-              args = { param($p, $r) if ($r -eq 'developer') { @('-p', $p, '--dangerously-skip-permissions') } else { @('-p', $p, '--allowedTools', 'Read,Grep,Glob,Bash,Edit') } } }
+              args = { param($p, $r, $l) $(if ($r -eq 'developer') { @('-p', $p, '--dangerously-skip-permissions') } else { @('-p', $p, '--allowedTools', 'Read,Grep,Glob,Bash,Edit') }) + (Get-ModelArgs $l) } }
   agy    = @{ exe = 'agy'; pipe = $false       # -i only: -p prints nothing until the end
-              args = { param($p, $r) if ($r -eq 'developer') { @('-i', $p, '--dangerously-skip-permissions') } else { @('-i', $p) } } }
+              args = { param($p, $r, $l) $(if ($r -eq 'developer') { @('-i', $p, '--dangerously-skip-permissions') } else { @('-i', $p) }) + (Get-ModelArgs $l) } }
 }
 
 function Now { [DateTime]::UtcNow.ToString('s') + 'Z' }
@@ -191,7 +207,21 @@ if ($Status) {
   Get-ChildItem $rtDir -Filter 'T-*.json' | Where-Object { $_.Name -match '^T-\d+\.json$' } | Sort-Object Name | ForEach-Object {
     $rt = Get-Content $_.FullName -Raw | ConvertFrom-Json; $a = Get-Last $rt
     $res = try { (Invoke-Gate result $rt.taskId).class } catch { '?' }
-    '{0}  {1,-8} attempt={2}  tool={3}  exit={4}  limitHit={5}  result={6}  finished={7}' -f $rt.taskId, (Get-State $a), $a.n, $a.tool, $a.exitCode, $a.limitHit, $res, $a.finishedAt
+    $mdl = if ($a.model -or $a.effort) { "  model=$(if ($a.model) { $a.model } else { 'default' })$(if ($a.effort) { "/$($a.effort)" })" } else { '' }
+    '{0}  {1,-8} attempt={2}  tool={3}{8}  exit={4}  limitHit={5}  result={6}  finished={7}' -f $rt.taskId, (Get-State $a), $a.n, $a.tool, $a.exitCode, $a.limitHit, $res, $a.finishedAt, $mdl
+  }
+  return
+}
+
+# --- -Limits: the last usage-limit hit per tool, with the log line (it usually names the reset time)
+if ($Limits) {
+  $hits = @(Get-ChildItem $rtDir -Filter 'T-*.json' | Where-Object { $_.Name -match '^T-\d+\.json$' } | ForEach-Object {
+      $o = Get-Content $_.FullName -Raw | ConvertFrom-Json
+      foreach ($x in @($o.attempts)) { if ($x.limitHit) { [pscustomobject]@{ task = $o.taskId; a = $x } } } })
+  foreach ($tool in $Tools.Keys | Sort-Object) {
+    $last = $hits | Where-Object { $_.a.tool -eq $tool } | Sort-Object { [string]$_.a.finishedAt } | Select-Object -Last 1
+    if ($last) { '{0,-7} last limit: {1} attempt {2}, finished {3}: {4}' -f $tool, $last.task, $last.a.n, $last.a.finishedAt, $(if ($last.a.limitText) { $last.a.limitText } else { '(no log line kept)' }) }
+    else { '{0,-7} no limit hit recorded' -f $tool }
   }
   return
 }
@@ -266,11 +296,11 @@ if ($Worker) {
   $code = 1; $note = $null
   try {
     # inside try: the window closes on exit, so a setup error must end up in the state file
-    $t = Invoke-Gate task $TaskId
+    $t = Invoke-Gate task $TaskId @('--tool', $Tool)
     Set-Location -LiteralPath $t.workdir -ErrorAction Stop
     $e = Get-WorkerEnv $t
     foreach ($k in $e.Keys) { Set-Item "env:$k" $e[$k] }
-    $argv = & $spec.args $t.prompt $t.role
+    $argv = & $spec.args $t.prompt $t.role $t.launch
     if ($spec.pipe) {
       & $spec.exe @argv 2>&1 | Tee-Object -FilePath $log -Append
     } else {
@@ -286,7 +316,9 @@ if ($Worker) {
   Set-Location -LiteralPath $root   # leave the checkout so it can be removed
   $rt = Read-Rt $TaskId; $a = Get-Last $rt   # re-read: the launcher wrote the pid after start
   $a.exitCode = $code
-  $a.limitHit = (Test-Path $log) -and [bool](Get-Content $log -Tail 50 | Select-String -Pattern 'usage limit|rate limit|quota' -Quiet)
+  $hit = if (Test-Path $log) { Get-Content $log -Tail 50 | Select-String -Pattern 'usage limit|rate limit|quota' | Select-Object -Last 1 }
+  $a.limitHit = [bool]$hit
+  if ($hit) { $line = "$($hit.Line)".Trim(); $a | Add-Member -Force -NotePropertyName limitText -NotePropertyValue $line.Substring(0, [Math]::Min(200, $line.Length)) }   # often names the reset time
   if ($note) { $a.note = $note }
   Complete-Attempt $TaskId $rt $(if ($code -eq 0) { 'exited' } else { 'error' })
   Write-Host "`n$TaskId attempt $($a.n): $($a.status) (exit $code)."
@@ -312,7 +344,7 @@ try {
   }
   $live = @(Get-ChildItem $rtDir -Filter 'T-*.json' | Where-Object { $_.Name -match '^T-\d+\.json$' } | ForEach-Object {
     $o = Get-Content $_.FullName -Raw | ConvertFrom-Json; if (Test-Held (Get-Last $o)) { $o.taskId } })
-  $pf = Invoke-Gate preflight $TaskId (@('--live', ($live -join ',')) + $(if ($Manual) { @('--manual') } else { @() }))
+  $pf = Invoke-Gate preflight $TaskId (@('--live', ($live -join ',')) + $(if ($Manual) { @('--manual') } else { @('--tool', $Tool) }))
   if (-not $pf.ok) {
     throw "$TaskId preflight failed, nothing was created:`n  - $($pf.problems -join "`n  - ")`nFix the Task File (or the project Preflight rules) and launch again."
   }
@@ -326,16 +358,16 @@ try {
 
   if (-not $rt) { $rt = [pscustomobject]@{ taskId = $TaskId; attempts = @() } }
   $n = @($rt.attempts).Count + 1
-  $a = [pscustomobject][ordered]@{ n = $n; tool = $(if ($Tool) { $Tool } else { 'manual' }); toolArgs = $(if ($Tool -eq 'codex') { $codexArgs -join ' ' })
+  $a = [pscustomobject][ordered]@{ n = $n; tool = $(if ($Tool) { $Tool } else { 'manual' }); toolArgs = $(if ($Tool -eq 'codex') { (Get-CodexArgs $t.launch) -join ' ' })
     role = $t.role; manual = $Manual.IsPresent; status = 'running'; pid = $null; pidStart = $null; exitCode = $null
-    startedAt = Now; finishedAt = $null; limitHit = $false; target = $t.target; workdir = $t.workdir
+    startedAt = Now; finishedAt = $null; limitHit = $false; model = $t.launch.model; effort = $t.launch.effort; target = $t.target; workdir = $t.workdir
     log = $(if ($Manual) { $null } else { Join-Path $rtDir "$TaskId.$n.log" }); baseline = (Invoke-Gate task $TaskId).baseline; note = $null }
   $rt.attempts = @($rt.attempts) + $a
   Write-Rt $TaskId $rt   # running attempt = lock for the worker's lifetime
 
   if ($Manual) {
     $e = Get-WorkerEnv $t
-    Write-Host "$TaskId attempt $n ready for a manual start.`n  folder: $($t.workdir)`n  env:    $(@($e.Keys | ForEach-Object { "$_=$($e[$_])" }) -join ', ')`n  prompt: $($t.prompt)`nWhen it ends: tools\run-task.ps1 $TaskId -MarkFinished"
+    Write-Host "$TaskId attempt $n ready for a manual start.`n  folder: $($t.workdir)`n  env:    $(@($e.Keys | ForEach-Object { "$_=$($e[$_])" }) -join ', ')`n  prompt: $($t.prompt)$(if ($t.modelSpec -or $t.effortSpec) { "`n  model:  Model: $($t.modelSpec) Effort: $($t.effortSpec) (start the tool with it)" })`nWhen it ends: tools\run-task.ps1 $TaskId -MarkFinished"
     return
   }
   $ps = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
@@ -350,4 +382,4 @@ try {
 } finally {
   $lock.Dispose(); Remove-Item $lockPath -ErrorAction SilentlyContinue
 }
-Write-Host "$TaskId attempt $n started in $Tool (visible window, pid $($p.Id)). log: $($a.log)"
+Write-Host "$TaskId attempt $n started in $Tool$(if ($a.model -or $a.effort) { " (model $(if ($a.model) { $a.model } else { 'default' }), effort $(if ($a.effort) { $a.effort } else { 'default' }))" }) (visible window, pid $($p.Id)). log: $($a.log)"

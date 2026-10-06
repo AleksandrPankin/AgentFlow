@@ -12,7 +12,7 @@ Keep AgentFlow small while its rules are enforced by the tools, not only written
 
 - 2.0.0 (P0-P4) and 2.1.0 (dashboard) are on `main`: `git branch --merged main`, `CHANGELOG.md`.
 - Launcher, gate, and ledger checked in a throwaway sandbox repository for 2.0.0. Not yet run with the real codex / claude / agy CLIs.
-- Work in progress: release 2.2.0 (wake on worker finish, closing interactive workers, agy folder trust) per `state/plan-2.2-3.0.md`.
+- 2.2.0 (wake on worker finish, closing agy, folder trust) and 2.3.0 (model and effort per task, `-Limits`) on branch `release/2.3.0`: sandbox matrices pass (placeholder processes; real launcher with fake CLIs). Not merged; real CLIs not yet run.
 
 ## Assumptions
 

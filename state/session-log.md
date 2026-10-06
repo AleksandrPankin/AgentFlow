@@ -25,3 +25,4 @@ Chronological log of work on the AgentFlow template.
 ## 2026-10-06
 
 - `requests/` (proposals from other projects' agents) git-ignored. Two Calbot requests, the human's messages, and a colleague's `.agentflow/` layout merged into `state/plan-2.2-3.0.md` (2.2.0 wake-up, 2.3.0 model per task, 3.0.0 one folder). Stage 2 closed; Stage 3 is now 2.2.0 and its pilot.
+- 2.2.0: `-Wait`, `gate.py result`, auto-close of agy windows, agy folder trust, `-Cleanup`; sandbox matrix 30x stable. 2.3.0: `Model:` / `Effort:`, `tools/models.json` (verified against installed CLI help and vendor catalogs), `-Limits`. Both on `release/2.3.0`.

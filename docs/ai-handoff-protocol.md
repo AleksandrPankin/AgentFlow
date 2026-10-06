@@ -190,9 +190,10 @@ Who: the Orchestrator (or the human). Per tool: Tool Routing.
 3. The Deployer and a live Tester on production run only in the session the human designated (`-Manual`). The Orchestrator starts no deployer itself and gives no tool full access to production. Production approval comes from the human in that session, never through the Orchestrator.
 4. Permissions come from the launcher's tool flags, not from prompts; a tool that asks to trust each new folder gets the worker folder pre-approved by the launcher (Antigravity CLI), and the entry is removed on cleanup. Full access: only a Developer in its own worktree. A Tester gets review isolation; prefer Codex for Tester tasks.
 5. The launcher prepares what the task needs before the start (`## Setup`: links, copies, env); a task `blocked` on a missing environment is an Orchestrator error. Parallel tasks get different `PORT`s (`## Port`); tests read it from the environment.
-6. The human states the remaining limit per tool at session start; the Orchestrator keeps it in the conversation, not in files, and picks fallbacks from it.
-7. **Maximize safe parallelism.** A task is ready when it is `ready` and every `Depends on` task is `done`. Launch every ready task that shares no `Allowed files`, `Port`, or `Rebuild together` with an open one: parallelism = min(ready tasks, free tool capacity, environment capacity). No fixed number of agents; refill a free slot at once.
-8. **Preflight** (`gate.py preflight`) refuses a launch with the full list of problems, before anything is created:
+6. The model is part of the launch: the Task File's `Model:` (tier or listed id) and `Effort:` are resolved by `tools/models.json` (per-machine override `AGENTFLOW_MODEL_<TOOL>_<TIER>`), passed as the tool's own flags, and recorded per attempt; absent or `default` = the tool's setting, no flag. Preflight refuses a value the table does not list for the launch tool. Choice: Tool Routing, Choosing the model.
+7. The human states the remaining limit per tool at session start (`tools/run-task.ps1 -Limits` shows the last limit hit per tool with its log line); the Orchestrator keeps it in the conversation, not in files, and picks fallbacks from it.
+8. **Maximize safe parallelism.** A task is ready when it is `ready` and every `Depends on` task is `done`. Launch every ready task that shares no `Allowed files`, `Port`, or `Rebuild together` with an open one: parallelism = min(ready tasks, free tool capacity, environment capacity). No fixed number of agents; refill a free slot at once.
+9. **Preflight** (`gate.py preflight`) refuses a launch with the full list of problems, before anything is created:
    - a `Depends on` task not `done`;
    - Tester: pre-merge, the checked task lacks `Outcome: completed` with `Change` = the `Verifies` SHA, or its branch moved; live, the SHA is not merged. Deployer: the SHA is not merged;
    - a Deployer or a live Tester on production without `-Manual`;
@@ -201,7 +202,7 @@ Who: the Orchestrator (or the human). Per tool: Tool Routing.
    - project patterns from `## Preflight` in Project rules, applied to the `## Checks` commands and `## Setup` lines of local tasks: `- deny: <regex>` (no command may match: production hosts, destructive commands) and `- require: <regex> => <regex>` (for example `playwright test => --project=local`).
 
    A refused launch is fixed in the Task File, not worked around.
-9. **Production is opt-in.** Every worker gets `AGENTFLOW_TARGET`: `local`, or the task's `Target` (`staging` / `prod`) for a live Tester or the Deployer; a Task File cannot override it. Project test and run configs default to local: unset or `local` never reaches staging or production. A config that can reach production by default is a defect: the Orchestrator issues a developer task to fix it before other work that runs those tests.
+10. **Production is opt-in.** Every worker gets `AGENTFLOW_TARGET`: `local`, or the task's `Target` (`staging` / `prod`) for a live Tester or the Deployer; a Task File cannot override it. Project test and run configs default to local: unset or `local` never reaches staging or production. A config that can reach production by default is a defect: the Orchestrator issues a developer task to fix it before other work that runs those tests.
 
 ## Section: Updating memory
 

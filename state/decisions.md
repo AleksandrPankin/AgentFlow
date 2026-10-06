@@ -101,3 +101,9 @@ Why: workers decorate fields (`**Outcome:** Completed.`) and quote the heading; 
 Decision: add the worker folder to `trustedWorkspaces` before an `agy` launch, remove it with `-Cleanup` (testers: automatically), edit the JSON node-wise and atomically.
 
 Why: the trust prompt for every new worktree blocked unattended runs, and the list grew forever. Rejected: trusting the parent `<worktrees>` folder (Antigravity matches exact paths only).
+
+### Model per task as a tier, resolved by one table (2026-10-06)
+
+Decision: Task Files name `Model: small | standard | strong` (or a listed id) and `Effort:`; `tools/models.json` maps them per tool, an env variable overrides per machine, preflight refuses what the table does not list, the attempt records what ran. No `Model:` line = no flag.
+
+Why: workers ran on whatever the user-level settings said, unrecorded, and the Orchestrator had no cost lever (Calbot). A tier survives model releases; one table changes, not every Task File. Rejected: model ids in Task Files by default (stale on every release), ids in the script.

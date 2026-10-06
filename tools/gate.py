@@ -116,7 +116,8 @@ def parse(tid):
          "rebuild": [w for b in bullets(section(text, "Rebuild together")) if re.search(r"[a-z0-9]", w := b.replace("`", "").split()[0].lower())],
          "checks": commands(section(text, "Checks")), "acceptance": bullets(section(text, "Acceptance criteria")),
          "independent": field(text, "Independent check"), "target": "local", "env": {}, "setup": [],
-         "headerHash": sha256(header(text)), "result": section(text, "Result")}
+         "headerHash": sha256(header(text)), "result": section(text, "Result"),
+         "modelSpec": field(text, "Model"), "effortSpec": field(text, "Effort")}
     t["prompt"] = (f"Your role: roles/{t['role']}.md. Your task: {f}. "
                    "Follow docs/ai-handoff-protocol.md, section 'Starting a role session'.")
     setup = section(text, "Setup") + "\n" + section(text, "Port")
@@ -161,6 +162,36 @@ def parse(tid):
     return t
 
 
+def resolve_model(t, tool):
+    """Task File Model / Effort -> {"model", "effort"} for the launch tool, plus problems. Table: tools/models.json."""
+    spec, eff = t.get("modelSpec"), t.get("effortSpec")
+    out, bad = {"model": None, "effort": None}, []
+    if spec in (None, "default") and eff in (None, "default"):
+        return out, bad  # today's behaviour: no flag
+    table = json.loads((ROOT / "tools" / "models.json").read_text(encoding="utf-8"))
+    conf = table["tools"].get(tool or "")
+    if not conf:
+        return out, bad  # manual or an unknown tool: the field is informational
+    tiers = conf["tiers"]
+    if spec not in (None, "default"):
+        env = os.environ.get(f"AGENTFLOW_MODEL_{tool.upper()}_{spec.upper()}") if spec in tiers else None
+        if spec in tiers:
+            out["model"] = env or tiers[spec]
+        elif spec in conf["models"]:
+            out["model"] = spec
+        else:
+            bad.append(f"Model '{spec}' is not valid for {tool}: tiers {', '.join(['default'] + list(tiers))}; "
+                       f"ids {', '.join(conf['models'])} (tools/models.json)")
+    if eff not in (None, "default"):
+        if eff not in conf["efforts"]:
+            bad.append(f"Effort '{eff}' is not valid for {tool}: {', '.join(['default'] + conf['efforts'])}")
+        elif out["model"] in conf.get("noEffort", []):
+            bad.append(f"Effort: {out['model']} takes no effort setting; use Effort: default or another model")
+        else:
+            out["effort"] = eff
+    return out, bad
+
+
 def baseline(t):
     """What the worker must not change during an attempt (protocol: Review isolation)."""
     b = {"taskHash": t["headerHash"]}
@@ -196,12 +227,14 @@ def last_attempt(tid):
 
 
 # --- preflight: all problems at once, before anything is created (protocol: Launching workers, rule 9)
-def preflight(tid, manual, live):
+def preflight(tid, manual, live, tool=None):
     bad = []
     try:
         t = parse(tid)
     except TaskError as e:
         return None, [str(e)]
+    t["launch"], more = resolve_model(t, None if manual else tool)
+    bad += more
     tpl = (TASKS / "_template.md").read_text(encoding="utf-8-sig")
     led = ledger_rows()
     status = {k: v.get("Status", "") for k, v in led.items()}
@@ -514,15 +547,18 @@ def main():
         if name == "preflight":
             p.add_argument("--manual", action="store_true")
             p.add_argument("--live", default="")
+        if name in ("task", "preflight"):
+            p.add_argument("--tool")
     sub.add_parser("stage").add_argument("n")
     a = ap.parse_args()
     try:
         if a.cmd == "task":
             t = parse(a.id)
             t["baseline"] = baseline(t)
+            t["launch"] = resolve_model(t, a.tool)[0]  # problems are refused by preflight before any launch
             write(a.out, t)
         elif a.cmd == "preflight":
-            t, bad = preflight(a.id, a.manual, {x for x in a.live.split(",") if x})
+            t, bad = preflight(a.id, a.manual, {x for x in a.live.split(",") if x}, a.tool)
             write(a.out, {"ok": not bad, "problems": bad, "task": t})
             return 0 if not bad else 1
         elif a.cmd == "endcheck":

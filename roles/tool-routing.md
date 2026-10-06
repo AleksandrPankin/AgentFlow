@@ -8,7 +8,7 @@ This file is shared by all projects and replaced on template update: notes from 
 
 1. Fit: the tables below.
 2. Remaining limit: at session start the human says what is left per tool. Not said: ask in one line. Do not write limits to memory.
-3. Expensive tools only where a mistake is expensive: mechanical edits, renames, simple tests go to the cheapest fitting tool or a smaller model.
+3. Expensive tools only where a mistake is expensive: mechanical edits, renames, simple tests go to the cheapest fitting tool or a smaller model ([Choosing the model](#choosing-the-model)).
 4. Tester on a different tool than the Developer when possible: another model has other blind spots. Codex first: only there [review isolation](../docs/ai-handoff-protocol.md#terms) is a sandbox.
 
 ## Tools
@@ -43,6 +43,37 @@ Used when `-Status` shows `limitHit=True`, or the attempt is `dead` / `error` wi
 | Antigravity CLI | Codex |
 
 No tool left: the task is `blocked` and one line to the human. Orchestrator out of Claude limit: hand the role to Codex through `state/handoff.md`; Claude stays for splitting and disputed acceptance.
+
+## Choosing the model
+
+The Task File names a tier, not a model: `Model: small | standard | strong` (or an id listed in [tools/models.json](../tools/models.json)), and `Effort: low | medium | high | xhigh | max`. `default` or no line = the tool's own setting. The launcher maps the tier to the tool's model, records it per attempt, and preflight refuses a value the table does not list. Tiers as of 2026-10-06 (`models.json`, `verifiedAt`):
+
+| Tier | Claude Code | Codex | Antigravity CLI |
+|---|---|---|---|
+| small | Haiku 4.5 (no effort setting) | GPT-6 Luna | Gemini 3.8 Flash low |
+| standard | Sonnet 5.5 | GPT-6.1 Sol | Gemini 3.8 Flash medium |
+| strong | Opus 5.5 | GPT-6 Astra | Gemini 3.8 Flash high |
+
+Above `strong`, by explicit id only and with a reason in the ledger `Notes`: `claude-fable-5-1` (Anthropic's most capable model, about 2.5x Opus 5.5 per token, long turns), `gemini-3.1-pro-high`.
+
+| Task kind | Model | Effort |
+|---|---|---|
+| mechanical: skeleton, config, renames, Task File or doc fixes, glue | small | default (Codex, agy: low) |
+| ordinary feature with clear criteria and tests | standard | default |
+| Tester of a risky or user-visible change; adversarial or mutation reading | strong | high |
+| silent or costly failure: access control, writes to external systems, data loss, security, concurrency, probabilistic output (routing, extraction) | strong | high or xhigh |
+| large read-only reading of code, logs, data | the tool with the longest context, tier by risk | low |
+| Deployer | not set by the Orchestrator: the human's designated session | - |
+
+Rules:
+
+1. Start at the cheapest tier that fits the risk; judge cost per accepted task, not per attempt: a cheap attempt that is rejected and redone costs more.
+2. Before a stronger model, try more effort on the same one; a newer model at lower effort often matches an older one at high effort.
+3. A task that failed twice on `standard` is retried on `strong` before it is split or rejected again.
+4. Short quota and a low-risk task: lower the tier; never for the Tester of a risky change.
+5. A choice that differs from the table goes to the ledger `Notes` with the reason.
+
+Sources (2026-10-06): installed CLI help (`claude --help` 2.1.291, `codex exec --help` 0.130.0, `agy --help` and `agy models` 1.3.0); Anthropic model guidance (Opus 5.5 default model, Sonnet 5.5 for everyday coding and agents, Haiku 4.5 for sub-agents and simple tasks; effort `low` for simple tasks and sub-agents, at least `high` for intelligence-sensitive work, `max` when correctness outweighs cost); OpenAI model descriptions in the Codex model catalog (Astra "frontier intelligence for the most demanding work", 6.1 Sol "workhorse for coding and everyday work", Luna "fast and affordable for easier tasks"). Gemini Flash over Pro for coding agents is public practice, not a vendor statement. Rules 1, 3-5: AgentFlow practice.
 
 ## Tool notes
 

@@ -5,6 +5,8 @@
 
 Role: developer | tester | deployer
 Tool: claude | codex | agy | antigravity      <!-- ../roles/tool-routing.md -->
+Model: default                                <!-- small | standard | strong | <id from ../tools/models.json>; ../roles/tool-routing.md, Choosing the model -->
+Effort: default                               <!-- low | medium | high | xhigh | max (per tool in ../tools/models.json) -->
 Stage: <Stage number from docs/project-plan.md>
 Depends on: T-xxx | none
 Branch: t-NNN-slug                            <!-- developer -->
