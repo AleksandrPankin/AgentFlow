@@ -5,3 +5,6 @@ tasks/.runtime/
 dashboard/out/
 dashboard/versions/
 __pycache__/
+
+# requests from other projects' agents to the template (local inbox, not part of the template)
+requests/

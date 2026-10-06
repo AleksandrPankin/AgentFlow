@@ -2,7 +2,7 @@
 
 ## As of
 
-2026-10-03, branch `refactor/fpf-audit` (not merged into main).
+2026-10-06, `main@2749d7e` (2.1.0). `refactor/fpf-audit` and `fix/launcher-defects` are merged into `main`.
 
 ## Goal
 
@@ -10,8 +10,9 @@ Keep AgentFlow small while its rules are enforced by the tools, not only written
 
 ## Verified state
 
-- 2.0.0 refactor done in five commits on `refactor/fpf-audit` (P0-P4); see `CHANGELOG.md`.
-- Launcher, gate, and ledger checked in a throwaway sandbox repository: launch gate, `-Manual`, review isolation, end check, verify, ledger transitions, Stage check (all passed). Not yet run with the real codex / claude / agy CLIs.
+- 2.0.0 (P0-P4) and 2.1.0 (dashboard) are on `main`: `git branch --merged main`, `CHANGELOG.md`.
+- Launcher, gate, and ledger checked in a throwaway sandbox repository for 2.0.0. Not yet run with the real codex / claude / agy CLIs.
+- Work in progress: release 2.2.0 (wake on worker finish, closing interactive workers, agy folder trust) per `state/plan-2.2-3.0.md`.
 
 ## Assumptions
 
@@ -19,10 +20,12 @@ Keep AgentFlow small while its rules are enforced by the tools, not only written
 
 ## Open problems
 
-- See `state/known-issues.md`.
+- See `state/known-issues.md` and section 9 of `state/plan-2.2-3.0.md`.
+- Reminder for the human: ask the colleague where his `launch.ps1` and `tests/` come from (blocks 3.0.0 only).
 
 ## Files to read first
 
 1. `docs/ai-handoff-protocol.md`
 2. `state/current-step.md`
-3. `CHANGELOG.md`
+3. `state/plan-2.2-3.0.md`
+4. `requests/` (local inbox from other projects' agents, git-ignored)

@@ -18,12 +18,24 @@ Exit criteria: roles, Task Files, ledger, launcher with preflight work on a live
 
 ### Stage 2. 2.0.0: enforcement, states, template vs project
 
+Status: closed.
+
+Exit criteria: P0-P4 of the FPF audit committed; sandbox checks pass; the branch is merged by the human. (Merged; 2.1.0 dashboard on top.)
+
+### Stage 3. Wake-up and pilot (2.2.0)
+
 Status: current.
 
-Exit criteria: P0-P4 of the FPF audit committed; sandbox checks pass; the branch is merged by the human.
+Exit criteria: 2.2.0 shipped (`state/plan-2.2-3.0.md`, section 4) with its sandbox matrix passing; one real project updated with the "Update" procedure and a full task cycle run with the real tools and `-Wait`; findings in `state/known-issues.md`.
 
-### Stage 3. Pilot 2.0.0
+### Stage 4. Model per task (2.3.0)
 
 Status: planned.
 
-Exit criteria: one real project updated with the "Update" procedure and a full task cycle run with the real tools; findings in `state/known-issues.md`.
+Exit criteria: `state/plan-2.2-3.0.md`, section 5.3.
+
+### Stage 5. One template folder (3.0.0)
+
+Status: planned.
+
+Exit criteria: `state/plan-2.2-3.0.md`, section 6.3.

@@ -17,3 +17,11 @@ Chronological log of work on the AgentFlow template.
 ## 2026-10-03
 
 - FPF audit of all files; refactor to 2.0.0 in five commits: P0 enforcement, P1 state and evidence, P2 rule order and contradictions, P3 template vs project, P4 English machine-facing text. Details: `CHANGELOG.md`, `state/decisions.md`.
+
+## 2026-10-04
+
+- 2.1.0: template-owned read-only dashboard (`dashboard/`), Russian interface, local server with Refresh; merged into `main`.
+
+## 2026-10-06
+
+- `requests/` (proposals from other projects' agents) git-ignored. Two Calbot requests, the human's messages, and a colleague's `.agentflow/` layout merged into `state/plan-2.2-3.0.md` (2.2.0 wake-up, 2.3.0 model per task, 3.0.0 one folder). Stage 2 closed; Stage 3 is now 2.2.0 and its pilot.
