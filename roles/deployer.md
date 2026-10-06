@@ -34,6 +34,8 @@ Deliver checked code to the server safely and confirm that it works.
 
 ## Result format
 
+Fill the other fields first and add the `Outcome:` line last, at its place on top: the launcher treats a stable `Outcome:` as the end of the attempt.
+
 ```markdown
 ## Result
 Outcome: completed | blocked | failed

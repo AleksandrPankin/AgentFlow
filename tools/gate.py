@@ -8,6 +8,7 @@ Used by tools/run-task.ps1 (pure logic here, side effects there):
   python tools/gate.py task T-007 --out f.json
   python tools/gate.py preflight T-007 [--manual] [--live T-1,T-2] --out f.json
   python tools/gate.py endcheck T-007 --out f.json
+  python tools/gate.py result T-007 --out f.json
 
 Rules: docs/ai-handoff-protocol.md. Exit code: 0 pass, 1 fail, 2 gate error.
 """
@@ -337,6 +338,56 @@ def verdict_problems(result):
     return [], v
 
 
+# --- result: what the worker's "## Result" says, for the launcher's -Wait (protocol: Runtime state)
+OUTCOMES = ["completed", "blocked", "failed"]
+DEPLOYMENTS = ["deployed", "rolled-back", "not-started"]
+
+
+def last_result(text):
+    """Body of the last "## Result" heading at line start. A worker may quote the heading inside its text."""
+    text = text.replace("\r\n", "\n")
+    ms = list(re.finditer(r"(?m)^## Result[ \t]*$", text))
+    if not ms:
+        return ""
+    body = re.split(r"(?m)^## ", text[ms[-1].end():], maxsplit=1)[0]
+    return re.sub(r"(?s)<!--.*?-->", "", body)
+
+
+def loose_field(body, name, pattern):
+    """Tolerant keyword read: `- **Outcome:** Completed.` counts; a pasted format line ("completed | blocked") does not."""
+    for m in re.finditer(rf"(?mi)^[ \t>*_-]*{name}[ \t*_]*:[ \t*_`]*({pattern})\b(.*)$", body):
+        if "|" not in m.group(2):
+            return m.group(1).lower()
+    return None
+
+
+ROLE_FIELDS = {"developer": ("Change", SHA), "tester": ("Verdict", "|".join(VERDICTS)),
+               "deployer": ("Deployment", "|".join(DEPLOYMENTS))}
+
+
+def result_state(tid):
+    """Class of the Result: completed | incomplete | blocked | failed | none, plus the role field (Change / Verdict / Deployment)."""
+    text = task_file(tid).read_text(encoding="utf-8-sig")
+    role = field(text, "Role")
+    body = last_result(text)
+    name, pattern = ROLE_FIELDS.get(role, (None, None))
+    outcome = loose_field(body, "Outcome", "|".join(OUTCOMES))
+    value = loose_field(body, name, pattern) if name else None
+    out = {"taskId": tid, "role": role, "outcome": outcome, "roleField": name, "roleValue": value,
+           "class": outcome or "none", "problem": None, "formatOk": None, "hash": sha256(body.strip())}
+    if outcome == "completed" and name and not value:
+        out["class"], out["problem"] = "incomplete", f"Outcome completed but no valid {name}"
+    elif outcome in ("blocked", "failed") and not loose_field(body, "(?:Question or reason|Question|Reason)", r"\S+"):
+        out["problem"] = f"Outcome {outcome} without Question or reason"
+    if outcome:  # would verify read the same? verify is strict: "Outcome: completed" at line start
+        strict = section(text, "Result")
+        ok = field(strict, "Outcome") == outcome
+        if name and value:
+            ok = ok and bool(re.match(rf"^(?i:{pattern})\b", field(strict, name) or ""))
+        out["formatOk"] = ok
+    return out
+
+
 # --- verify: acceptance evidence for one task (protocol: Acceptance)
 def verify(tid):
     t = parse(tid)
@@ -456,7 +507,7 @@ def main():
     sys.stderr.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("task", "preflight", "endcheck", "verify"):
+    for name in ("task", "preflight", "endcheck", "verify", "result"):
         p = sub.add_parser(name)
         p.add_argument("id")
         p.add_argument("--out")
@@ -476,6 +527,8 @@ def main():
             return 0 if not bad else 1
         elif a.cmd == "endcheck":
             write(a.out, {"violations": endcheck(a.id)})
+        elif a.cmd == "result":
+            write(a.out, result_state(a.id))
         elif a.cmd == "verify":
             return 0 if verify(a.id) else 1
         elif a.cmd == "stage":

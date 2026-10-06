@@ -34,6 +34,8 @@ Change the code so that the `Acceptance criteria` hold: the smallest change, wit
 
 ## Result format
 
+Fill the other fields first (after the commit) and add the `Outcome:` line last, at its place on top: the launcher treats a stable `Outcome:` as the end of the attempt and may close the window.
+
 ```markdown
 ## Result
 Outcome: completed | blocked | failed

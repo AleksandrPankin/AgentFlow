@@ -83,3 +83,21 @@ Why: projects inherited template history as their own decisions, and updating `r
 Decision: machine-facing files in English; communication with the human in Russian, generated from the canonical rule, never stored as a second copy.
 
 Why: Russian text costs about twice the tokens of English, and two copies of a rule drift apart.
+
+### Wake the Orchestrator with a blocking command, not a model loop (2026-10-06)
+
+Decision: `run-task.ps1 -Wait` blocks in the shell and exits at the first finished task with one line; the Orchestrator runs it in the host's background mode (Claude Code `run_in_background`). Finished = process ended, or for interactive tools and manual attempts a valid `Outcome:` stable for a grace period. The launcher closes a finished interactive window as `exited`; a Developer only with a clean worktree at `Change`.
+
+Why: an idle chat session never reacted to finished workers, and the human became the dispatcher (Calbot T-001). Rejected: self-paced polling (a full model turn per tick), worker-to-Orchestrator messages (Claude-only), waiting for the human to type `/exit`.
+
+### Result read by keyword for waking, strictly for acceptance (2026-10-06)
+
+Decision: `gate.py result` reads `Outcome` and the role field tolerantly from the last `## Result` heading; `gate.py verify` stays strict. The difference is reported (`format=loose`).
+
+Why: workers decorate fields (`**Outcome:** Completed.`) and quote the heading; a strict reader never woke (Calbot), a tolerant verify would weaken the evidence.
+
+### The launcher owns Antigravity folder trust (2026-10-06)
+
+Decision: add the worker folder to `trustedWorkspaces` before an `agy` launch, remove it with `-Cleanup` (testers: automatically), edit the JSON node-wise and atomically.
+
+Why: the trust prompt for every new worktree blocked unattended runs, and the list grew forever. Rejected: trusting the parent `<worktrees>` folder (Antigravity matches exact paths only).

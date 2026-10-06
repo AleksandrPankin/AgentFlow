@@ -2,6 +2,16 @@
 
 What changed in each AgentFlow version. Why it changed: `state/decisions.md`. The version of an installed project: `AgentFlow version:` in its `AGENTS.md`.
 
+## 2.2.0 - 2026-10-06
+
+- `tools/run-task.ps1 -Wait [T-NNN,...] [-PollSec 30] [-TimeoutMin N] [-GraceSec 20]`: blocks until a task finishes and prints one line (`T-NNN finished: attempt=... result=... Change|Verdict|Deployment=...`); no model, no network. Exit 0 finished, 3 timeout, 4 nothing to wait for. The Orchestrator runs it in the host tool's background mode and is woken when it exits, instead of polling `-Status`.
+- `tools/gate.py result T-NNN`: Result class by keyword from the last `## Result` heading at line start: `completed`, `incomplete` (no valid role field), `blocked`, `failed`, `none`. Tolerant of Markdown decoration; a pasted format line (`completed | blocked`) does not count; `formatOk` tells whether strict verify will read the same. `-Status` shows the class.
+- Interactive tools (Antigravity CLI) keep their window after the work: `-Wait` closes it as `exited` once the Result has a stable Outcome (a Developer only with a clean worktree at `Change`), so `gate.py verify` passes without the human. `-Stop` records `exited` when a valid Outcome exists, `error` otherwise.
+- Antigravity CLI folder trust: the launcher adds the worker folder to `trustedWorkspaces` before the start and removes it with the new `-Cleanup T-NNN` (automatic for tester checkouts); other entries and keys are kept. Override path: `AGENTFLOW_AGY_SETTINGS`.
+- Protocol: Runtime state rule 3 (waiting, finished, classes, closing), Launching workers rule 4 (pre-approved folder), Git rules rule 6 (`-Cleanup`), lifecycle row `incomplete`. Roles: Orchestrator waits with `-Wait`; workers add the `Outcome:` line last. Tool routing: how each host waits. GUIDE: keep the Orchestrator session open while workers run.
+
+Migration from 2.1.x: replace `tools/`, `docs/ai-handoff-protocol.md`, `roles/`, `GUIDE.md`. No Task File or ledger changes. Remove project-level interim watchers and manual trust steps (Calbot: `AGENTS.md`, Tool routing).
+
 ## 2.1.0 - 2026-10-04
 
 - New template-owned `dashboard/`: a read-only view for the human built from the ledger, Task Files, and git (`python dashboard/build.py` -> `dashboard/out/index.html`, `out/graph.html`). Task table with filters over every axis, task card, Gantt, timeline, dependency, successor and check links. Interface in Russian (it is human-facing); ledger statuses are shown as Russian labels.

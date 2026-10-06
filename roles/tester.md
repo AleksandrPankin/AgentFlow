@@ -29,6 +29,8 @@ Per criterion: `pass` (met, evidence given), `partial` (what exactly is wrong), 
 
 ## Result format
 
+Fill the other fields first and add the `Outcome:` line last, at its place on top: the launcher treats a stable `Outcome:` as the end of the attempt and may close the window.
+
 ```markdown
 ## Result
 Outcome: completed | blocked | failed

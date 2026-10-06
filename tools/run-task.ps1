@@ -6,8 +6,10 @@
   tools\run-task.ps1 T-007 codex          # launch a developer or tester task in a visible window
   tools\run-task.ps1 T-007 -Manual        # same gate and preparation, no process: a human starts the tool
   tools\run-task.ps1 -Status              # process state of the last attempt of every task
-  tools\run-task.ps1 T-007 -Stop          # kill a hung worker (whole process tree), release the lock
+  tools\run-task.ps1 -Wait [T-007,T-008]  # block until a task finishes (no ids: every running one), print one line
+  tools\run-task.ps1 T-007 -Stop          # end a worker (whole process tree), release the lock
   tools\run-task.ps1 T-007 -MarkFinished  # a manual attempt has finished
+  tools\run-task.ps1 T-007 -Cleanup       # after the worktree is removed: drop the task's folder trust entries
 
 .DESCRIPTION
   Rules: docs/ai-handoff-protocol.md, sections "Runtime state" and "Launching workers".
@@ -17,13 +19,20 @@
   Machine settings are environment variables, not edits of $Tools:
     AGENTFLOW_CODEX       codex executable; wildcards allowed, the newest match wins
     AGENTFLOW_CODEX_ARGS  extra codex exec arguments, space-separated (for example: -m <model>)
+    AGENTFLOW_AGY_SETTINGS  Antigravity CLI settings file (default %USERPROFILE%\.gemini\antigravity-cli\settings.json)
+  -Wait exit codes: 0 a task finished, 3 timeout (-TimeoutMin), 4 nothing to wait for.
 #>
 param(
   [Parameter(Position = 0)][string]$TaskId,
   [Parameter(Position = 1)][ValidateSet('codex', 'claude', 'agy')][string]$Tool,
   [switch]$Status,
+  [switch]$Wait,
+  [int]$PollSec = 30,
+  [int]$TimeoutMin = 0,
+  [int]$GraceSec = 20,
   [switch]$Stop,
   [switch]$MarkFinished,
+  [switch]$Cleanup,
   [switch]$Manual,
   [switch]$Worker
 )
@@ -57,7 +66,7 @@ $Tools = @{
 
 function Now { [DateTime]::UtcNow.ToString('s') + 'Z' }
 function Invoke-Gate([string]$cmd, [string]$id, [string[]]$more = @()) {   # tools/gate.py -> object; exit 2 = gate error
-  $out = Join-Path $rtDir "$id.gate.json"
+  $out = Join-Path $rtDir "$id.gate.$PID.$([guid]::NewGuid().ToString('N').Substring(0, 8)).json"   # unique: -Wait and the worker window call it at once
   $msg = & python (Join-Path $root 'tools\gate.py') $cmd $id @more --out $out 2>&1
   if ($LASTEXITCODE -ge 2 -or -not (Test-Path $out)) { throw "gate.py $cmd ${id}: $msg" }
   try { Get-Content $out -Raw -Encoding utf8 | ConvertFrom-Json } finally { Remove-Item $out -ErrorAction SilentlyContinue }
@@ -79,9 +88,35 @@ function Test-Alive($a) {
   return [bool]($p -and [long]$p.StartTime.ToUniversalTime().Ticks -eq [long]$a.pidStart)   # pid reuse guard
 }
 function Test-Held($a) { $a -and $a.status -eq 'running' -and ($a.manual -or -not $a.pid -or (Test-Alive $a)) }
+function Get-State($a) {   # process state as the protocol names it; 'dead' = running without a live process
+  if ($a.status -eq 'running' -and -not $a.manual -and -not (Test-Alive $a)) { 'dead' } else { $a.status }
+}
+
+# Antigravity CLI asks "Do you trust this project?" for every new folder; trustedWorkspaces is an exact-path list.
+# The launcher adds the worker folder before the start and removes it on cleanup; other keys and entries are kept.
+function Set-AgyTrust([string]$dir, [bool]$add) {
+  $p = if ($env:AGENTFLOW_AGY_SETTINGS) { $env:AGENTFLOW_AGY_SETTINGS } else { Join-Path $env:USERPROFILE '.gemini\antigravity-cli\settings.json' }
+  if (-not $add -and -not (Test-Path $p)) { return }
+  $json = if (Test-Path $p) { Get-Content $p -Raw -Encoding utf8 } else { '' }
+  $node = [Text.Json.Nodes.JsonObject]::new()   # assigned directly: PowerShell would enumerate a node returned from an if
+  if ("$json".Trim()) { $node = [Text.Json.Nodes.JsonNode]::Parse($json) }
+  $list = $node['trustedWorkspaces']
+  if ($null -eq $list) { if (-not $add) { return }; $list = [Text.Json.Nodes.JsonArray]::new(); $node['trustedWorkspaces'] = $list }
+  $hits = @(for ($i = $list.Count - 1; $i -ge 0; $i--) { if ([string]$list[$i] -eq $dir) { $i } })   # -eq: case-insensitive
+  if ($add -and $hits) { return }
+  if (-not $add -and -not $hits) { return }
+  if ($add) { $list.Add([Text.Json.Nodes.JsonValue]::Create($dir)) } else { foreach ($i in $hits) { $list.RemoveAt($i) } }
+  $opt = [Text.Json.JsonSerializerOptions]@{ WriteIndented = $true; Encoder = [Text.Encodings.Web.JavaScriptEncoder]::UnsafeRelaxedJsonEscaping }
+  New-Item -ItemType Directory -Force (Split-Path $p) | Out-Null
+  $tmp = "$p.agentflow.tmp"
+  [IO.File]::WriteAllText($tmp, $node.ToJsonString($opt), [Text.UTF8Encoding]::new($false))
+  Move-Item -Force $tmp $p
+}
 
 function Remove-Checkout($t) {   # tester checkouts are disposable
-  if ($t.role -ne 'tester' -or -not (Test-Path $t.workdir)) { return }
+  if ($t.role -ne 'tester') { return }
+  try { Set-AgyTrust $t.workdir $false } catch { Write-Warning "could not remove the Antigravity trust entry: $($_.Exception.Message)" }
+  if (-not (Test-Path $t.workdir)) { return }
   git -C $root worktree remove --force $t.workdir 2>$null
   if ($LASTEXITCODE -and (Test-Path $t.workdir)) {
     try { Remove-Item -Recurse -Force $t.workdir -ErrorAction Stop; git -C $root worktree prune }
@@ -132,27 +167,86 @@ function Complete-Attempt([string]$id, $rt, [string]$state) {   # end-of-attempt
   if ($bad.Count) { Write-Warning "$id attempt $($a.n) failed the end check: $($bad -join '; ')" }
 }
 
+# End a running attempt: kill the process tree, then the end check. With a valid Outcome in the Result the
+# worker has finished (an interactive tool keeps its window open): 'exited'. Without one: 'error' (hung worker).
+function Stop-Attempt([string]$id, [string]$how) {
+  $rt = Read-Rt $id; $a = Get-Last $rt
+  if (Test-Alive $a) { taskkill /PID $a.pid /T /F | Out-Null }
+  if (-not $a -or $a.status -ne 'running') { return }
+  if ((Invoke-Gate result $id).class -ne 'none') { $a.note = "closed after Result ($how)"; Complete-Attempt $id $rt 'exited' }
+  else { $a.exitCode = -1; $a.note = "stopped with $how"; Complete-Attempt $id $rt 'error' }
+}
+function Format-Finished([string]$id, [string]$state, $r, [string]$note) {   # the one line -Wait prints
+  $s = "$id finished: attempt=$state result=$($r.class)"
+  if ($r.roleValue) { $s += " $($r.roleField)=$($r.roleValue)" }
+  if ($r.problem) { $s += " problem=`"$($r.problem)`"" }
+  if ($r.class -ne 'none' -and $r.formatOk -eq $false) { $s += ' format=loose (verify reads strict fields)' }
+  if ((Get-Last (Read-Rt $id)).limitHit) { $s += ' limit' }
+  if ($note) { $s += " note=`"$note`"" }
+  $s
+}
+
 # --- -Status: process state of the last attempt of every task
 if ($Status) {
   Get-ChildItem $rtDir -Filter 'T-*.json' | Where-Object { $_.Name -match '^T-\d+\.json$' } | Sort-Object Name | ForEach-Object {
     $rt = Get-Content $_.FullName -Raw | ConvertFrom-Json; $a = Get-Last $rt
-    $state = $a.status
-    if ($state -eq 'running' -and -not $a.manual -and -not (Test-Alive $a)) { $state = 'dead' }
-    '{0}  {1,-8} attempt={2}  tool={3}  exit={4}  limitHit={5}  finished={6}' -f $rt.taskId, $state, $a.n, $a.tool, $a.exitCode, $a.limitHit, $a.finishedAt
+    $res = try { (Invoke-Gate result $rt.taskId).class } catch { '?' }
+    '{0}  {1,-8} attempt={2}  tool={3}  exit={4}  limitHit={5}  result={6}  finished={7}' -f $rt.taskId, (Get-State $a), $a.n, $a.tool, $a.exitCode, $a.limitHit, $res, $a.finishedAt
   }
   return
 }
+
+# --- -Wait: block until one task finishes, print one line, exit. No model, no network: the host tool runs it in
+# the background (Claude Code run_in_background re-invokes the session on exit). Finished = the process ended,
+# or (interactive tool, manual attempt) the Result has a valid Outcome unchanged for -GraceSec; an interactive
+# window is then closed as 'exited' (a developer only with a clean worktree at its Change).
+if ($Wait) {
+  $ids = @(if ($TaskId) { $TaskId -split '[\s,;]+' | Where-Object { $_ } } else {
+      Get-ChildItem $rtDir -Filter 'T-*.json' | Where-Object { $_.Name -match '^T-\d+\.json$' } | Sort-Object Name | ForEach-Object {
+        $o = Get-Content $_.FullName -Raw | ConvertFrom-Json; if ((Get-Last $o).status -eq 'running') { $o.taskId } } })
+  foreach ($id in $ids) { if ($id -notmatch '^T-\d+$') { throw "not a task id: $id" } }
+  if (-not $ids) { Write-Output 'nothing to wait for'; exit 4 }
+  $deadline = if ($TimeoutMin -gt 0) { (Get-Date).AddMinutes($TimeoutMin) }
+  $seen = @{}   # id -> Result hash and when it last changed
+  while ($true) {
+    foreach ($id in $ids) {
+      $a = Get-Last (Read-Rt $id); $state = if ($a) { Get-State $a } else { 'none' }
+      $r = Invoke-Gate result $id
+      if ($state -ne 'running') { Write-Output (Format-Finished $id $state $r ''); exit 0 }
+      $byResult = $a.manual -or ($Tools[$a.tool] -and -not $Tools[$a.tool].pipe)   # pipe tools exit by themselves
+      if (-not $byResult -or $r.class -eq 'none') { continue }
+      if (-not $seen[$id] -or $seen[$id].hash -ne $r.hash) { $seen[$id] = @{ hash = $r.hash; at = Get-Date }; continue }
+      if (((Get-Date) - $seen[$id].at).TotalSeconds -lt $GraceSec) { continue }
+      $note = ''
+      if ($a.manual) { $note = 'manual attempt: end it with -MarkFinished' }
+      else {
+        $dirty = $a.role -eq 'developer' -and $r.class -eq 'completed' -and (
+          (git -C $a.workdir status --porcelain 2>$null) -or -not "$(git -C $a.workdir rev-parse HEAD 2>$null)".StartsWith($r.roleValue))
+        if ($dirty) { $note = 'window left open: worktree not clean at Change' }
+        else { Stop-Attempt $id '-Wait'; $state = (Get-Last (Read-Rt $id)).status; $note = 'window closed after Result' }
+      }
+      Write-Output (Format-Finished $id $state $r $note); exit 0
+    }
+    if ($deadline -and (Get-Date) -gt $deadline) { Write-Output "timeout after $TimeoutMin min, still running: $($ids -join ', ')"; exit 3 }
+    Start-Sleep -Seconds $PollSec
+  }
+}
 if ($TaskId -notmatch '^T-\d+$') { throw 'TaskId T-NNN required' }
 
-# --- -Stop: kill a hung worker (or end a manual attempt), release the lock
+# --- -Stop: end a worker (or a manual attempt), release the lock
 if ($Stop) {
-  $rt = Read-Rt $TaskId; $a = Get-Last $rt
-  if (Test-Alive $a) { taskkill /PID $a.pid /T /F | Out-Null }
-  if ($a -and $a.status -eq 'running') {
-    $a.exitCode = -1; $a.note = 'stopped with -Stop'
-    Complete-Attempt $TaskId $rt 'error'
-  }
-  Write-Host "$TaskId stopped, lock released"; return
+  Stop-Attempt $TaskId '-Stop'
+  $a = Get-Last (Read-Rt $TaskId)
+  Write-Host "$TaskId stopped ($($a.status)), lock released"; return
+}
+
+# --- -Cleanup: after the worktree is removed, drop the folder trust entries of the task's attempts
+if ($Cleanup) {
+  $rt = Read-Rt $TaskId
+  if (Test-Held (Get-Last $rt)) { throw "$TaskId has a running attempt: -Stop it first" }
+  $dirs = @($rt.attempts | ForEach-Object { $_.workdir } | Where-Object { $_ } | Select-Object -Unique)
+  foreach ($d in $dirs) { Set-AgyTrust $d $false }
+  Write-Host "$TaskId cleanup: trust entries removed for $(if ($dirs) { $dirs -join ', ' } else { 'no folders' })"; return
 }
 
 # --- -MarkFinished: a manual attempt has finished (no process was observed: exit code stays empty)
@@ -225,7 +319,10 @@ try {
   $t = $pf.task
   if (-not $Manual -and $t.role -notin 'developer', 'tester') { throw "Role '$($t.role)': the launcher starts developer and tester only. Use -Manual." }
   Initialize-Workdir $t
-  if ($Tool -eq 'agy') { Write-Host "Antigravity: make sure '$($t.workdir)' is in its trusted folders before the first run." }
+  if ($Tool -eq 'agy') {
+    try { Set-AgyTrust $t.workdir $true }
+    catch { Write-Warning "Antigravity: could not add '$($t.workdir)' to its trusted folders ($($_.Exception.Message)); confirm the prompt in its window." }
+  }
 
   if (-not $rt) { $rt = [pscustomobject]@{ taskId = $TaskId; attempts = @() } }
   $n = @($rt.attempts).Count + 1

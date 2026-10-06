@@ -1,6 +1,6 @@
 # Agent Instructions
 
-AgentFlow version: 2.1.0
+AgentFlow version: 2.2.0
 
 Read by Codex CLI, Antigravity, Antigravity CLI, and other AGENTS.md-aware tools. Claude Code reads it through `CLAUDE.md`.
 

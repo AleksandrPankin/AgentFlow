@@ -48,6 +48,7 @@ No tool left: the task is `blocked` and one line to the human. Orchestrator out 
 
 - Launch: `tools/run-task.ps1 T-NNN <codex|claude|agy>`. Machine settings are environment variables, not script edits: `AGENTFLOW_CODEX` (codex path, `*` allowed, the newest match wins), `AGENTFLOW_CODEX_ARGS` (for example `-m <model>`).
 - Antigravity CLI: interactive only (`-i`); `-p` prints nothing until the end, so work and a hang look the same.
-- Antigravity: the worktree must be in its trusted folders before the first run; the first run passes the setup wizard by hand once. Error 500: retry, not a task failure.
+- Antigravity CLI: the launcher adds the worker folder to its trusted folders (`trustedWorkspaces` in `%USERPROFILE%\.gemini\antigravity-cli\settings.json`, override `AGENTFLOW_AGY_SETTINGS`) and `-Cleanup` removes it; the first run on a machine passes the setup wizard by hand once. Its window stays open after the work: `-Wait` closes it once the Result is filled. Error 500: retry, not a task failure.
+- Waiting for workers (`-Wait`, protocol Runtime state rule 3): Claude Code as Orchestrator runs it with `run_in_background` and is woken on exit; Codex runs it in the foreground with a timeout (`-TimeoutMin`); a host with neither polls `-Status`.
 - Antigravity (IDE): `tools/run-task.ps1 T-NNN -Manual`, the human starts the task, then `-MarkFinished`.
 - Prompt for tools without slash commands (they read `AGENTS.md` themselves): `Your role: roles/<role>.md. Your task: tasks/T-NNN-slug.md. Follow docs/ai-handoff-protocol.md, section "Starting a role session".` Claude Code: `/start-role <role> tasks/T-NNN-slug.md`.
