@@ -11,7 +11,7 @@ Breaking: migration required. Start only after 2.2.0-2.4.0 run in a pilot projec
 2. Template repository layout: the root mirrors a project root (`.agentflow/`, `AGENTS.md`, `CLAUDE.md`, `.claude/`), so "install" is a copy of those entries.
 
 ### 1.2 Work
-1. Two roots in the scripts: `$agentflowRoot` (template code) and `$projectRoot` (data). `gate.py`: `ROOT` split the same way; `TASKS`, `RUNTIME`, `PRODUCT`, the ledger path (`tools/ledger.py`) resolve to the data root.
+1. Two roots in the scripts: `$agentflowRoot` (template code) and `$projectRoot` (data). `gate.py`: `ROOT` split the same way; `TASKS`, `RUNTIME`, `PRODUCT`, the ledger path (`tools/ledger.py`) resolve to the data root. `python dev/test_gate_spec.py` passes after the split (adapt its copy paths to the new layout).
 2. Every path in the protocol, roles, `AGENTS.md`, `CLAUDE.md`, `.claude/commands/*.md`, `GUIDE.md`, the Task File template, `templates/`, `dashboard/build.py`, `dashboard/serve.py`, `dashboard/snapshot.py` and its README: prefixed with `.agentflow/` where they point at template code. Link check over all Markdown after the move.
 3. "Installing or updating AgentFlow": update = replace the template-owned parts of `.agentflow/` and the two root entry files' template part; project data untouched. `.gitignore` entries move with the paths.
 4. Migration note for 2.x projects (move files, fix `.gitignore`, rebuild the dashboard) and a check script that lists leftovers at the old paths.
@@ -22,7 +22,7 @@ Install and update work by copying one folder plus the entry files; no template 
 
 ## 2. Open questions
 
-1. REMINDER for the human: ask the colleague where his `launch.ps1` and `tests/` come from and whether `tests/` belongs in the template. Blocks 3.0.0 only. If `tests/` comes in, it takes the sandbox matrices too (2.2.0 endings, 2.4.0 `gate.py spec` and preflight: cases in `plan-2.4.0.md`, section 6, at `5f74ce3`).
+1. REMINDER for the human: ask the colleague where his `launch.ps1` and `tests/` come from and whether `tests/` belongs in the template. Blocks 3.0.0 only. If `tests/` comes in, `dev/test_gate_spec.py` (2.4.0, 28 cases) moves there; the 2.2.0 and 2.3.0 matrices were never committed (cases in `plan-2.2-3.0.md`, D3, at `5f74ce3`).
 2. Does `docs/engineering-rules.md` (Project rules) move into `.agentflow/`?
 3. Does `docs/product/` move into `.agentflow/`? It is the product's own documents, human-facing, not AgentFlow data: proposal - it stays in the project.
 4. Should `-Cleanup` also remove the worktree and branch (today the Orchestrator does it by Git rule 6)?

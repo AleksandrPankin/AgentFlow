@@ -22,6 +22,7 @@ All rules live in one file, [docs/ai-handoff-protocol.md](docs/ai-handoff-protoc
 | `AGENTS.md`, `CLAUDE.md`, `.claude/commands/` | entry points for the tools |
 | `GUIDE.md` | step-by-step guide (Russian): install, update, daily use |
 | `CHANGELOG.md` | what changed in each version |
+| `dev/` | regression checks of the template's tools (`python dev/test_gate_spec.py`); not copied into projects |
 
 Requirements: git, Python 3, PowerShell 7 on Windows, and the CLIs of the tools you use.
 

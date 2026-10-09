@@ -12,7 +12,7 @@ Keep AgentFlow small while its rules are enforced by the tools, not only written
 
 - 2.0.0 (P0-P4) and 2.1.0 (dashboard) are on `main`: `git branch --merged main`, `CHANGELOG.md`.
 - 2.2.0 and 2.3.0 on `release/2.3.0`: sandbox matrices pass (placeholder processes, fake CLIs). Real CLIs not yet run.
-- 2.4.0: `gate.py spec` and the Product definition preflight pass a 28-case sandbox matrix (the script was a session scratch file; the cases are in `state/plan-2.4.0.md`, section 6, at `5f74ce3`); relative links and anchors of all Markdown resolve. No end-to-end run with real tools.
+- 2.4.0: `gate.py spec` and the Product definition preflight pass a 28-case sandbox matrix (`python dev/test_gate_spec.py`); relative links and anchors of all Markdown resolve. No end-to-end run with real tools.
 
 ## Files in flight
 
