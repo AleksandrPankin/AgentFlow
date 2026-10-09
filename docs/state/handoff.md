@@ -2,7 +2,7 @@
 
 ## As of
 
-2026-10-09. `main` = 3.0.0 on disk (fast-forward from `release/3.0.0`), tags `v2.4.0` and `v3.0.0`; nothing pushed: GitHub `main` is `f3a8b0c` (2.1.0).
+2026-10-09. `main` = 3.0.0 on disk (fast-forward from `release/3.0.0`), tags `v2.4.0` and `v3.0.0`; pushed to GitHub (`main` and both tags).
 
 ## Goal
 
@@ -26,7 +26,7 @@ None after this commit. Changed this session: everything moved into `.agentflow/
 
 ## Open problems
 
-- `docs/state/known-issues.md` and `docs/state/plan-next.md` (the fork `vcherstar/AgentFlow`, `-Cleanup`, stall detector, push after the pilot).
+- `docs/state/known-issues.md` and `docs/state/plan-next.md` (the fork `vcherstar/AgentFlow`, `-Cleanup`, stall detector).
 - Live projects run 2.x or no AgentFlow; check `AgentFlow version` before judging feedback.
 
 ## Files to read first
