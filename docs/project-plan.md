@@ -30,7 +30,7 @@ Exit criteria: 2.2.0 shipped (`CHANGELOG.md`) with its sandbox matrix passing; o
 
 ### Stage 4. Model per task (2.3.0)
 
-Status: planned.
+Status: current (implemented on `release/2.3.0`, `3e83936`; the agy path is not yet tested on a machine with agy).
 
 Exit criteria: `Model: strong` launches claude and codex with the id from `tools/models.json` or the env override; the launch line, `T-NNN.json`, and `-Status` show the model; an unknown tier or id is refused with the valid list; no `Model:` line leaves the command line unchanged; the agy path is tested on a machine that has it; every statement in "Choosing the model" has a vendor source or is labelled practice.
 
@@ -38,7 +38,9 @@ Exit criteria: `Model: strong` launches claude and codex with the id from `tools
 
 Status: current.
 
-Exit criteria: 2.4.0 committed on `release/2.4.0` (`5f74ce3`); the `gate.py` sandbox matrix (28 cases) passes; the human copies the layer into one live project and its feedback is in `state/known-issues.md`.
+Exit criteria: 2.4.0 committed on `release/2.4.0` (`5f74ce3`, FPF re-check fixes on top); `python dev/test_gate_spec.py` passes; the human copies the layer into one live project and its feedback is in `state/known-issues.md`.
+
+Stages 3-5 are implemented on release branches; one pilot on a live project can close all three (`state/current-step.md`).
 
 ### Stage 6. One template folder (3.0.0)
 

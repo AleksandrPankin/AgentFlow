@@ -158,6 +158,12 @@ Decision: a sandbox matrix written for a release is kept as a script in `dev/` (
 
 Why: the 2.2.0 and 2.3.0 matrices lived only in a session's scratch folder and were lost; a later change to `gate.py` (the 3.0.0 path split) would have nothing to re-run. Rejected: waiting for the `tests/` decision (the script would be gone by then).
 
+### FPF re-check: the product layer's rules held by code
+
+Decision: an item is never implementable above the Vision / Brief front matter status (weakest link); `APPROVED (OWN-###)` names a done owner task; FR / NFR priority is a closed list; verify re-checks `Spec:` and stage fails on `STALE`; "main branch" is `main` / `master` and the main folder must be on it; verify records are committed; the owner journal records the channel of each answer.
+
+Why: an FPF re-check of 2.4.0 (B.1 weakest link, A.2.9 speech act, A.10 evidence carrier, B.3.4 freshness) found rules that existed only as prose; a sandbox showed `APPROVED` without any journal row passing, an FR implementable under a `DRAFT` Brief, `main_branch()` returning the checked-out branch, and a mistyped `Must` read as "not Must". The code compares only IDs, Latin statuses, and the `[x]` mark. Rejected: reading what the human answered (Russian free text; it stays with the gate check and the human); a code check that the Orchestrator writes no product code (where product code starts is project-specific; accepted risk); failing verify when the Checks run tests the developer changed (the developer writes the test first by role, so it would fire on nearly every task; the Tester covers risky changes).
+
 ### Template working plans are deleted when their release is committed
 
 Decision: one open plan file at a time (`state/plan-3.0.0.md`); a finished release's plan is removed after its commit, its result already in `CHANGELOG.md` and this file; the old plan stays in git history.
