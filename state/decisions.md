@@ -108,9 +108,17 @@ Decision: Task Files name `Model: small | standard | strong` (or a listed id) an
 
 Why: workers ran on whatever the user-level settings said, unrecorded, and the Orchestrator had no cost lever (Calbot). A tier survives model releases; one table changes, not every Task File. Rejected: model ids in Task Files by default (stale on every release), ids in the script.
 
+## 2026-10-07
+
+### No classifier model in the template core
+
+Decision: Result detection, preflight, and tier choice stay deterministic, free, and offline. A fast classifier with confidence scores (TypeSafe "Jeff", OpenRouter `typesafe/jev-router`, OpenAI Decisions API, from a video the human shared; claims not verified) is not taken. Possible later: an optional stall detector for `-Wait` on a silent worker's log tail, or an advisory guard on `## Checks` commands, never instead of the deny rules.
+
+Why: the workers are CLI subscriptions, not OpenRouter; the router picks the cheapest adequate model, which conflicts with "strong" for risky code. Better fit: classification inside a product (for example message routing), decided in that project.
+
 ## 2026-10-09
 
-Context: the human added a product definition layer (Vision, Brief, PRD, Architecture, gates, authority, document rules) drafted outside the template, plus field evidence from a live project (an owner task queue with an answer journal; the owner started a slice before its gates were approved). Checked against FPF (A.7, A.2.6, A.2.9, A.6.B, A.10, A.16, B.3.4, C.16, E.17, F.17) before integration; plan and findings: `state/plan-2.4.0.md` (deleted on release).
+Context: the human added a product definition layer (Vision, Brief, PRD, Architecture, gates, authority, document rules) drafted outside the template, plus field evidence from a live project (an owner task queue with an answer journal; the owner started a slice before its gates were approved). Checked against FPF (A.7, A.2.6, A.2.9, A.6.B, A.10, A.16, B.3.4, C.16, E.17, F.17) before integration; plan and findings: `state/plan-2.4.0.md` in git at `5f74ce3` (removed afterwards; open items in `state/plan-3.0.0.md`).
 
 ### Product definition is optional and lives in `docs/product/`
 
