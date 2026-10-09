@@ -141,7 +141,7 @@ Active when `docs/product/00_INDEX.md` exists; otherwise skip this section. The 
 
 ### States
 
-Each family has one owner, and a label means one thing only.
+Each family has one owner, and within a family a label means one thing only; a word used in two families (`blocked`: Task state and Outcome) is named with its family.
 
 | Family | Where; who writes | Values |
 |---|---|---|
