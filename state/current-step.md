@@ -2,10 +2,11 @@
 
 ## Now
 
-2.2.0 and 2.3.0 are committed on branch `release/2.3.0` (sandbox-verified, not merged; real CLIs not yet run).
+2.4.0 (product definition, owner tasks, `Spec:` checks, deploy through the platform project) is in the working tree of `release/2.4.0`, not committed.
 
 ## Next action
 
-1. The human merges `release/2.3.0` when ready, or first pilots it.
-2. Pilot in Calbot with the real tools (Stage 3): update, one full cycle with `-Wait`, one agy task, one task with `Model:`.
-3. Release 3.0.0 (`.agentflow/`), after the human hears from the colleague about `launch.ps1` and `tests/`.
+1. The human reviews the diff; on "ok", one commit on `release/2.4.0`.
+2. The human copies the layer into a live project (CHANGELOG 2.4.0, migration note) and brings feedback; findings go to `state/known-issues.md`.
+3. Merge order to decide with the human: `release/2.3.0`, then `release/2.4.0`, into `main`.
+4. Release 3.0.0 (`.agentflow/`, Stage 6) after the colleague's answer about `launch.ps1` and `tests/`.

@@ -34,8 +34,14 @@ Status: planned.
 
 Exit criteria: `state/plan-2.2-3.0.md`, section 5.3.
 
-### Stage 5. One template folder (3.0.0)
+### Stage 5. Product definition and owner tasks (2.4.0)
+
+Status: current.
+
+Exit criteria: `state/plan-2.4.0.md` implemented on `release/2.4.0`; `gate.py` sandbox matrix (section 6) passes; the human copies the layer into one live project and its feedback is in `state/known-issues.md`.
+
+### Stage 6. One template folder (3.0.0)
 
 Status: planned.
 
-Exit criteria: `state/plan-2.2-3.0.md`, section 6.3.
+Exit criteria: `state/plan-2.2-3.0.md`, section 6.3; `templates/` moves into `.agentflow/` with the rest.

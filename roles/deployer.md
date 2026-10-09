@@ -10,7 +10,8 @@ Deliver checked code to the server safely and confirm that it works.
 
 - Read the Task File and the deploy procedure in `runbook/`.
 - Before deploying, every item holds, otherwise stop:
-  - you run in the session the human designated (prepared with `-Manual`);
+  - you run in the platform project session named in Project rules `## Deploy`, or the session the human designated (prepared with `-Manual`); in the product project you write only this Task File's `## Result` and the request's status line;
+  - staging: the deploy goes through the contract script and changes no server (a server change needs the human's yes);
   - you deploy the `Deploys` commit, and its tasks are `done`;
   - production: you asked the human in this session, showing `Deploys` and `Target`, and got a yes;
   - the rollback method is known;
@@ -27,7 +28,8 @@ Deliver checked code to the server safely and confirm that it works.
 
 ## Stop with `Outcome: blocked` when
 
-- production has no yes from the human;
+- production has no yes from the human (write `Needs owner: yes for prod <SHA>`);
+- the deploy needs a server change without the human's yes;
 - there is no rollback method;
 - the SHA or branch does not match the task;
 - an access or secret is missing.
@@ -44,6 +46,7 @@ Approval: source=human target=prod sha=<SHA> at=<ISO time>   (production only)
 Steps: runbook/<file>, steps 1-N; deviations: none | which
 Smoke: <what was checked> -> pass | fail
 Rollback: not needed | done (how, result)
+Needs owner: <action only the human can do>   (blocked on the human only)
 Problems:
 - ...
 Proposed runbook updates:

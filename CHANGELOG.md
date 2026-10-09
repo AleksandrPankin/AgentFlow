@@ -2,6 +2,17 @@
 
 What changed in each AgentFlow version. Why it changed: `state/decisions.md`. The version of an installed project: `AgentFlow version:` in its `AGENTS.md`.
 
+## 2.4.0 - 2026-10-09
+
+- Product definition (optional, active when `docs/product/00_INDEX.md` exists): new `templates/product/` with Vision, Brief, PRD, Architecture (`AR01`-`AR10`, ADRs in `decisions/`), readiness review `09_REVIEW.md` (the agent's report for the human), and explanations for the human `05`-`08` (gates, authority, document rules, traceability example). Russian content, Latin IDs and statuses. Protocol: new section "Product definition" (files, item format, Spec status `DRAFT` / `PROPOSED` / `APPROVED` / `STALE` / `SUPERSEDED`, gates G0-G5 per Stage, Change Impact, reading by ID).
+- Owner tasks: `state/owner-tasks.md` (skeleton `templates/owner-tasks.md`), `OWN-###`, one action per task, journal of the human's answers. The human's word does not block the work, except the blocking list (keys and accounts, production deploy, server change, money beyond budget, new external access or personal data, irreversible action, feature outside the MVP). Protocol: new section "Owner tasks"; States rows "Spec status" and "Owner task".
+- Task File: `Spec: <IDs> | none - <reason> | spike - <Q-ID>`; `Read first` entries `<file> - <IDs>` (the worker reads only those sections); criteria cite their `AC-###`.
+- `tools/gate.py spec`: duplicate IDs, invalid statuses, Must FR without AC, AC without FR, status counts. Preflight with Product definition: a developer task needs `Spec:`; every item exists and is `PROPOSED` or `APPROVED`; no `Allowed files` under `docs/product/`. Without `docs/product/` preflight is as in 2.3.0.
+- Deploy: the Deployer is an agent session of the platform project named in Project rules `## Deploy`; the Orchestrator requests the deploy; staging without the human when no server changes; production keeps the human's yes in that session.
+- Roles: Results get `Proposed spec changes:` and `Needs owner:`; the Orchestrator runs the gates, opens owner tasks instead of waiting, records answers in the journal. `AGENTS.md`: a worker reads only the sections "Starting a role session" names. GUIDE: product before development, tasks for the human, deploy.
+
+Migration from 2.3.x: replace `AGENTS.md` above `## Project rules`, `docs/ai-handoff-protocol.md`, `roles/`, `tasks/_template.md`, `tools/`, `GUIDE.md`; copy `templates/owner-tasks.md` to `state/owner-tasks.md` if absent (a project with its own owner queue keeps it and adopts the format). Add `## Deploy` to Project rules if the project is deployed. Product definition: copy `templates/product/` to `docs/product/` only when the human wants it; a project that already keeps such documents elsewhere moves them to `docs/product/`, renames Architecture sections `T01`-`T10` to `AR01`-`AR10`, and adds `- **Статус:**` lines to FR, NFR, ADR. Existing Task Files need no change; new developer tasks in a project with `docs/product/` need `Spec:`. Dashboard unchanged.
+
 ## 2.3.0 - 2026-10-06
 
 - Task File fields `Model: default | small | standard | strong | <id>` and `Effort: default | low | medium | high | xhigh | max`. New `tools/models.json` maps tiers to each tool's model and lists the accepted ids and efforts (`verifiedAt`); per-machine override `AGENTFLOW_MODEL_<TOOL>_<TIER>`. No model id in the scripts.

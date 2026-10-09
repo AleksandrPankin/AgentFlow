@@ -3,6 +3,7 @@
 
   python tools/gate.py verify T-007      acceptance evidence for one task; appends to tasks/.runtime/T-007.verify.json
   python tools/gate.py stage 2           every Stage 2 task done and its Checks pass on the main branch
+  python tools/gate.py spec              Product definition items in docs/product/: IDs, statuses, Must FR without AC
 
 Used by tools/run-task.ps1 (pure logic here, side effects there):
   python tools/gate.py task T-007 --out f.json
@@ -29,8 +30,11 @@ import ledger  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 TASKS = ROOT / "tasks"
 RUNTIME = TASKS / ".runtime"
+PRODUCT = ROOT / "docs" / "product"
 SHA = r"[0-9a-fA-F]{7,40}"
 VERDICTS = ["pass", "partial", "unverified", "fail"]  # worst last
+SPEC_STATUSES = ["APPROVED", "PROPOSED", "DRAFT", "STALE", "SUPERSEDED"]  # best first
+IMPLEMENTABLE = ("APPROVED", "PROPOSED")
 
 
 class TaskError(Exception):
@@ -117,7 +121,7 @@ def parse(tid):
          "checks": commands(section(text, "Checks")), "acceptance": bullets(section(text, "Acceptance criteria")),
          "independent": field(text, "Independent check"), "target": "local", "env": {}, "setup": [],
          "headerHash": sha256(header(text)), "result": section(text, "Result"),
-         "modelSpec": field(text, "Model"), "effortSpec": field(text, "Effort")}
+         "modelSpec": field(text, "Model"), "effortSpec": field(text, "Effort"), "spec": field(text, "Spec")}
     t["prompt"] = (f"Your role: roles/{t['role']}.md. Your task: {f}. "
                    "Follow docs/ai-handoff-protocol.md, section 'Starting a role session'.")
     setup = section(text, "Setup") + "\n" + section(text, "Port")
@@ -226,6 +230,104 @@ def last_attempt(tid):
     return rt["attempts"][-1] if rt and rt.get("attempts") else None
 
 
+# --- Product definition: spec items in docs/product/ (protocol: Product definition). 05-09 explain or report: no items there.
+ITEM_HEAD = re.compile(r"^#{1,4}[ \t]+([A-Z]{1,4}-\d+)\b")  # "### FR-012 — title"
+ITEM_STATUS = re.compile(r"^[ \t]*[-*][ \t]+\*\*(?:Статус|Status)[ \t]*:?[ \t]*\*\*[ \t]*:?[ \t]*`?([^\s`*.,;]+)")
+ITEM_SOURCE = re.compile(r"^[ \t]*[-*][ \t]+\*\*Source[ \t]*:?[ \t]*\*\*[ \t]*:?(.*)$")
+ITEM_MUST = re.compile(r"^[ \t]*[-*][ \t]+\*\*(?:Приоритет|Priority)[ \t]*:?[ \t]*\*\*[ \t]*:?[ \t]*`?Must`?[ \t]*$")
+STATUS_KINDS = ("FR", "NFR", "ADR")  # carry their own Статус; an AC takes the worst of its FR / NFR sources
+SPEC_REF = r"\b(?:[A-Z]{1,4}-\d+|[A-Z]{1,2}\d{2})\b"  # FR-012, ADR-006, B04, AR05
+
+
+def spec_files():
+    return [f for f in sorted(PRODUCT.rglob("*.md")) if not re.match(r"0[5-9]_", f.name)]
+
+
+def spec_items():
+    """{id: {file, line, status, sources, must}} of docs/product/, and problems for IDs defined twice."""
+    items, dups = {}, []
+    for f in spec_files():
+        rel, cur = f.relative_to(ROOT).as_posix(), None
+        for n, line in enumerate(f.read_text(encoding="utf-8-sig").splitlines(), 1):
+            if re.match(r"^#{1,6}[ \t]", line):
+                cur = None
+                if m := ITEM_HEAD.match(line):
+                    if m.group(1) in items:
+                        it = items[m.group(1)]
+                        dups.append(f"{m.group(1)} defined twice: {it['file']}:{it['line']} and {rel}:{n}")
+                    else:
+                        cur = items[m.group(1)] = {"file": rel, "line": n, "status": None, "sources": [], "must": False}
+            elif cur is not None:
+                if (m := ITEM_STATUS.match(line)) and cur["status"] is None:
+                    cur["status"] = m.group(1).upper()
+                elif m := ITEM_SOURCE.match(line):
+                    cur["sources"] += re.findall(r"\b(?:FR|NFR)-\d+\b", m.group(1))
+                elif ITEM_MUST.match(line):
+                    cur["must"] = True
+    return items, dups
+
+
+def item_status(items, iid):
+    it = items[iid]
+    if iid.split("-")[0] in STATUS_KINDS:
+        return it["status"]
+    own = [items[s]["status"] for s in it["sources"] if s in items]
+    if not own or any(s not in SPEC_STATUSES for s in own):
+        return None
+    return max(own, key=SPEC_STATUSES.index)
+
+
+def spec_problems(t):
+    """Preflight with Product definition: Spec items exist and are implementable; no worker changes docs/product/."""
+    bad = [f"Allowed files '{a}' is in docs/product/: workers propose spec changes in the Result"
+           for a in t["allowed"] if overlap(a, "docs/product")]
+    spec = t.get("spec")
+    if not spec:
+        if t["role"] == "developer":
+            bad.append('developer task needs "Spec: <IDs> | none - <reason> | spike - <Q-ID>" (docs/product/ exists)')
+        return bad
+    if m := re.match(r"^(none|spike)\b", spec):
+        if not re.match(r"^(none|spike)[ \t]*-[ \t]*[^<\s]", spec):
+            bad.append(f'Spec "{spec}": write "{m.group(1)} - <reason or Q-ID>"')
+        return bad
+    ids = re.findall(SPEC_REF, spec)
+    if not ids:
+        return bad + [f'Spec "{spec}": no item IDs (FR-012, AC-012, ADR-006)']
+    items, _ = spec_items()
+    text = None
+    for i in ids:
+        if i in items and (i.split("-")[0] in STATUS_KINDS or i.startswith("AC-")):
+            st = item_status(items, i)
+            if st not in IMPLEMENTABLE:
+                bad.append(f"Spec {i} is {st or 'without a valid status'} ({items[i]['file']}:{items[i]['line']}), needs PROPOSED or APPROVED")
+        elif i not in items:
+            text = text if text is not None else "\n".join(f.read_text(encoding="utf-8-sig") for f in spec_files())
+            if i.split("-")[0] in STATUS_KINDS + ("AC",) or not re.search(rf"\b{re.escape(i)}\b", text):
+                bad.append(f"Spec {i} not found in docs/product/")
+    return bad
+
+
+def spec_lint():
+    if not (PRODUCT / "00_INDEX.md").exists():
+        print("spec: no docs/product/00_INDEX.md, Product definition is not active")
+        return True
+    items, bad = spec_items()
+    for iid, it in items.items():
+        at = f"{it['file']}:{it['line']}"
+        if iid.split("-")[0] in STATUS_KINDS and it["status"] not in SPEC_STATUSES:
+            bad.append(f"{iid} ({at}): status '{it['status'] or ''}', expected {' | '.join(SPEC_STATUSES)}")
+        if iid.startswith("AC-") and not [s for s in it["sources"] if s in items]:
+            bad.append(f"{iid} ({at}): Source names no FR / NFR of docs/product/")
+    covered = {s for i, it in items.items() if i.startswith("AC-") for s in it["sources"]}
+    bad += [f"{i} ({it['file']}:{it['line']}): Must without an AC (no AC has Source: {i})" for i, it in items.items()
+            if i.startswith("FR-") and it["must"] and it["status"] != "SUPERSEDED" and i not in covered]
+    count = {s: sum(1 for i, it in items.items() if i.split("-")[0] in STATUS_KINDS and it["status"] == s) for s in SPEC_STATUSES}
+    print(f"spec: {'PASS' if not bad else 'FAIL'} ({len(items)} items; " + ", ".join(f"{s} {n}" for s, n in count.items()) + ")")
+    for b in bad:
+        print(f"  - {b}")
+    return not bad
+
+
 # --- preflight: all problems at once, before anything is created (protocol: Launching workers, rule 9)
 def preflight(tid, manual, live, tool=None):
     bad = []
@@ -241,7 +343,7 @@ def preflight(tid, manual, live, tool=None):
     role, pre_merge = t["role"], t["role"] == "tester" and t["target"] == "local"
 
     if not manual and role == "deployer":
-        bad.append("a Deployer runs only in the session the human designated: use -Manual")
+        bad.append("a Deployer runs in the platform project session (Project rules ## Deploy) or one the human designated: use -Manual")
     if not manual and role == "tester" and t["target"] == "prod":
         bad.append("a live Tester on prod runs only in the session the human designated: use -Manual")
     if role == "developer":
@@ -259,6 +361,8 @@ def preflight(tid, manual, live, tool=None):
     for s in t["setup"]:
         if not (ROOT / s["path"]).exists():
             bad.append(f"Setup {s['kind']}: {s['path']} is not in the main folder; build it there first")
+    if (PRODUCT / "00_INDEX.md").exists():
+        bad += spec_problems(t)
 
     checked = t.get("checked", {}).get("id")
     for d in t["depends"]:
@@ -550,6 +654,7 @@ def main():
         if name in ("task", "preflight"):
             p.add_argument("--tool")
     sub.add_parser("stage").add_argument("n")
+    sub.add_parser("spec")
     a = ap.parse_args()
     try:
         if a.cmd == "task":
@@ -569,6 +674,8 @@ def main():
             return 0 if verify(a.id) else 1
         elif a.cmd == "stage":
             return 0 if stage(a.n) else 1
+        elif a.cmd == "spec":
+            return 0 if spec_lint() else 1
     except TaskError as e:
         print(f"gate: {e}", file=sys.stderr)
         return 2

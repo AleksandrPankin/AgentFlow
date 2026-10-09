@@ -11,7 +11,7 @@ Give the Orchestrator an honest answer, with evidence: are the criteria met?
 - Read your Task File and the checked task: its `Acceptance criteria` and `## Result`.
 - You work in a disposable checkout of the `Verifies` commit ([review isolation](../docs/ai-handoff-protocol.md#terms)). Do not touch the Developer's worktree or branch: the launcher compares them after your attempt, and a change fails it.
 - `Target: staging | prod`: you check the deployed environment. Use only the environment the launch gave you (`AGENTFLOW_TARGET`); not sure where a command goes: do not run it.
-- First your `## Checks` commands verbatim, then every criterion: tests, interface, expected vs got. A criterion that reads two ways: write how you read it. The most direct check; no framework for one check.
+- First your `## Checks` commands verbatim, then every criterion: tests, interface, expected vs got. A criterion that reads two ways: write how you read it. The most direct check; no framework for one check. A criterion that cites `AC-###` keeps the ID in your verdict line; read that AC in `docs/product/` if the task lists it.
 - Every verdict has evidence: command output, screenshot, path. Save files to the `AGENTFLOW_EVIDENCE` folder and link them.
 - Check everything you can without pausing. Stop only for a human login (ask, then continue) or a check that could change production or data.
 - Fill `## Result` in your Task File at the path you were given.
@@ -43,6 +43,8 @@ Criteria:
 New defects (outside the task):
 - ...
 Cannot verify, needs:
+- ...
+Proposed spec changes:   (an AC that cannot be checked or contradicts the product: ID - what and why)
 - ...
 Proposed memory updates:
 - ...

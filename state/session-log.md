@@ -30,3 +30,8 @@ Chronological log of work on the AgentFlow template.
 ## 2026-10-07
 
 - Discussed a fast classifier with confidence scores (TypeSafe "Jeff", OpenRouter jev-router, from a video the human shared): not for the template core; possible optional stall detector for `-Wait`, decided after the Calbot pilot. Note in `state/plan-2.2-3.0.md`, section 9.
+
+## 2026-10-09
+
+- The human's product-definition pack (9 files, `D:\OneDrive\AI\01_Templates\000_AI-First\`), research notes, an integration review, and a live project's `09_GAPS_REVIEW.md` / `state/owner-tasks.md` checked against FPF; findings and decisions in `state/plan-2.4.0.md`. The human decided: Russian docs with Latin IDs, non-blocking final word with owner tasks, Vision and Brief separate, `gate.py` check now, `templates/product/`, deploy through the platform project with the human's yes for production.
+- 2.4.0 on `release/2.4.0` (from `release/2.3.0`, not committed yet): `templates/product/` (00-09), `templates/owner-tasks.md`, protocol sections "Owner tasks" and "Product definition", `Spec:` in Task Files, `gate.py spec` and preflight checks (sandbox matrix 28 cases pass), roles, GUIDE, README, CHANGELOG, decisions; Stage 5 added, 3.0.0 moved to Stage 6.

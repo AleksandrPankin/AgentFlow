@@ -23,6 +23,7 @@ Change the code so that the `Acceptance criteria` hold: the smallest change, wit
 - Merge, push to the main branch, deploy, delete worktrees or branches.
 - Start sub-agents or parallel agents.
 - Fix what is not in the task: list it under `Found, not fixed`.
+- Edit `docs/product/` or add behaviour its items do not ask for: propose it under `Proposed spec changes`.
 
 ## Stop with `Outcome: blocked` when
 
@@ -47,7 +48,10 @@ Checks:
 Criteria without a command:
 - <criterion> - how it was checked / why not
 Question or reason:   (blocked / failed only)
+Needs owner: <action only the human can do>   (blocked on the human only)
 Found, not fixed:
+- ...
+Proposed spec changes:   (docs/product/: item ID - what and why)
 - ...
 Proposed memory updates:
 - ...

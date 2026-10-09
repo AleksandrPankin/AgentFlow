@@ -8,6 +8,7 @@ Tool: claude | codex | agy | antigravity      <!-- ../roles/tool-routing.md -->
 Model: default                                <!-- small | standard | strong | <id from ../tools/models.json>; ../roles/tool-routing.md, Choosing the model -->
 Effort: default                               <!-- low | medium | high | xhigh | max (per tool in ../tools/models.json) -->
 Stage: <Stage number from docs/project-plan.md>
+Spec: <FR-###, AC-###, ADR-###> | none - <reason> | spike - <Q-ID>   <!-- with docs/product/ only; developer: required; items PROPOSED or APPROVED -->
 Depends on: T-xxx | none
 Branch: t-NNN-slug                            <!-- developer -->
 Worktree: <worktrees>\<repo>-t-NNN-slug       <!-- developer; <worktrees> from Project rules -->
@@ -22,6 +23,8 @@ Target: staging | prod                        <!-- deployer; tester after a depl
 One or two sentences: what must be different.
 
 ## Read first
+
+<!-- A product entry names its sections: `docs/product/03_PRD.md - FR-012, AC-012`; the worker reads only those. -->
 
 - files to read
 
@@ -48,6 +51,8 @@ One or two sentences: what must be different.
 <!-- Deployer, and developers of shared parts: what is rebuilt or deployed with this task, in dependency order. "nothing" is an answer too. -->
 
 ## Acceptance criteria
+
+<!-- With docs/product/: a criterion cites the AC it refines, "AC-012: ...", and adds no new obligation. -->
 
 - [ ] checkable criterion 1
 - [ ] checkable criterion 2

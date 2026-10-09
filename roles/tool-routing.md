@@ -30,7 +30,7 @@ This file is shared by all projects and replaced on template update: notes from 
 | Tester: code review, test runs | Codex | Claude Code |
 | Tester: interface in a browser, widths, screenshots | Antigravity (IDE) | Claude Code + Playwright |
 | Reading large code, logs, data | Antigravity CLI | Claude Code |
-| Deployer | the tool where server access and the runbook are set up: Claude Code or Codex | never Antigravity CLI for production |
+| Deployer | the platform project's session (Project rules `## Deploy`), where server access and the deploy script are set up | never Antigravity CLI for production |
 
 ## Fallback by limit
 
@@ -63,7 +63,7 @@ Above `strong`, by explicit id only and with a reason in the ledger `Notes`: `cl
 | Tester of a risky or user-visible change; adversarial or mutation reading | strong | high |
 | silent or costly failure: access control, writes to external systems, data loss, security, concurrency, probabilistic output (routing, extraction) | strong | high or xhigh |
 | large read-only reading of code, logs, data | the tool with the longest context, tier by risk | low |
-| Deployer | not set by the Orchestrator: the human's designated session | - |
+| Deployer | not set by the Orchestrator: the platform project's session | - |
 
 Rules:
 

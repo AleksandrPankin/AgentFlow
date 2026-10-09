@@ -219,7 +219,7 @@ Install and update work by copying one folder plus the entry files; no template 
 Edit `docs/project-plan.md` through the human's approval:
 - Stage 2 (2.0.0): `closed` (P0-P4 committed, merged into `main`, 2.1.0 on top).
 - Stage 3: rename to "Pilot and wake-up (2.2.0)": 2.2.0 shipped and one real project run with real codex / claude / agy. Exit criteria: the matrix passes in the sandbox; one full cycle in Calbot with `-Wait`; findings in `state/known-issues.md`.
-- Stage 4: "Model per task (2.3.0)". Stage 5: ".agentflow layout (3.0.0)".
+- Stage 4: "Model per task (2.3.0)". Stage 5: ".agentflow layout (3.0.0)" (Stage 6 since 2.4.0 took Stage 5, 2026-10-09).
 - `state/handoff.md`, `state/current-step.md`, `state/session-log.md` (entry for 2.1.0 and this plan).
 
 ## 8. Risks

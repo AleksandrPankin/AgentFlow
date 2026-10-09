@@ -14,7 +14,9 @@ This file is the single source of truth. Entry points (`AGENTS.md`, `CLAUDE.md`,
 - Attempt - one launch of a worker for a task, recorded by the launcher ([Runtime state](#runtime-state)).
 - Task Ledger - [state/tasks.md](../state/tasks.md), one row per task. Stage - one roadmap step in `docs/project-plan.md`; each task belongs to one.
 - Tool Routing - [roles/tool-routing.md](../roles/tool-routing.md): which tool takes which task; read by the Orchestrator only.
-- Project rules - the project's own rules: `docs/engineering-rules.md` or `AGENTS.md` under `## Project rules`; never overwritten by a template update. They name the `<worktrees>` folder and may hold `## Preflight` and `## Tool routing`.
+- Project rules - the project's own rules: `docs/engineering-rules.md` or `AGENTS.md` under `## Project rules`; never overwritten by a template update. They name the `<worktrees>` folder and may hold `## Preflight`, `## Tool routing`, and `## Deploy`.
+- Owner task - `OWN-###` in `state/owner-tasks.md`: an action or decision only the human can give; the work goes on around it except for the blocking list ([Owner tasks](#section-owner-tasks)).
+- Product definition - the product's own documents in `docs/product/` (Vision, Brief, PRD, Architecture, ADRs, readiness review); active when `docs/product/00_INDEX.md` exists ([Product definition](#section-product-definition)). Spec item - one ID block in it (`FR-012`, `AC-012`, `ADR-006`); a Task File names its items in `Spec:`. Product gate - G0-G5, a readiness check of one slice (a Stage) run by agents, with the human's word coming later through an owner task; not a `gate.py` check.
 - Review isolation - a Tester cannot change the Developer artifact it checks: it works in a disposable checkout of the `Verifies` commit, and after the attempt the launcher checks that the checked branch, worktree, and Task File did not change. Codex enforces it with a sandbox; for Claude only that end check guards it.
 
 ## What goes where
@@ -25,9 +27,11 @@ This file is the single source of truth. Entry points (`AGENTS.md`, `CLAUDE.md`,
 - `state/known-issues.md` - failed attempts, dead ends, false hypotheses, constraints; dated, with when to look again.
 - `state/decisions.md` - important decisions: why, and what was rejected.
 - `state/tasks.md` - Task Ledger, edited only with `python tools/ledger.py`.
+- `state/owner-tasks.md` - owner tasks and the journal of the human's answers (human-facing).
 - `docs/project-plan.md` - roadmap: stages with Exit criteria and state.
+- `docs/product/` - Product definition (human-facing); `decisions/ADR-###.md` in it hold technical decisions of the product, `state/decisions.md` decisions about process and plan; neither copies the other.
 - `runbook/` - verified steps only ([Updating the runbook](#section-updating-the-runbook)); `screenshots/` - images linked from it.
-- `roles/`, `tasks/_template.md`, `tools/` (launcher `run-task.ps1`, gates `gate.py`, ledger `ledger.py`), `dashboard/` (the human's read-only view) - template-owned ([Installing or updating AgentFlow](#section-installing-or-updating-agentflow)); change them only to fix the template itself.
+- `roles/`, `tasks/_template.md`, `tools/` (launcher `run-task.ps1`, gates `gate.py`, ledger `ledger.py`), `dashboard/` (the human's read-only view), `templates/` (skeletons copied into a project once) - template-owned ([Installing or updating AgentFlow](#section-installing-or-updating-agentflow)); change them only to fix the template itself.
 - `tasks/T-NNN-slug.md` - Task Files.
 
 ### Planning levels
@@ -55,7 +59,7 @@ Rule order: this file > Project rules (including nested `AGENTS.md`) > role file
 - Never write passwords, tokens, keys, recovery codes, cookies, or other secrets to Markdown.
 - Do not invent screenshots or files; link a screenshot only if it exists in `screenshots/`.
 - Do not repeat failed attempts listed in `state/known-issues.md`.
-- Talk to the human in Russian unless Project rules name another language: an optional `Status: <LABEL>` line, then a short explanation that adds information; do not repeat the status in words or quote this file unless asked. Machine-facing files (rules, roles, Task Files, memory) stay in English; a human explanation is written from them when needed, never stored as a second copy.
+- Talk to the human in Russian unless Project rules name another language: an optional `Status: <LABEL>` line, then a short explanation that adds information; do not repeat the status in words or quote this file unless asked. Machine-facing files (rules, roles, Task Files, memory) stay in English; human-facing files (`docs/product/`, `state/owner-tasks.md`, `GUIDE.md`, the dashboard) are Russian, with IDs, statuses, and field names in Latin. A human explanation is written from the rules when needed, never stored as a second copy; the one exception is `docs/product/05`-`08`, which explain [Product definition](#section-product-definition) and change in the same commit as it.
 
 ## Section: Roles and memory ownership
 
@@ -64,12 +68,13 @@ Single Mode: you follow every section yourself, including writing Canonical Memo
 | | Orchestrator | Developer | Tester | Deployer |
 |---|---|---|---|---|
 | Write Canonical Memory and Task Files | only writer | own `## Result` | own `## Result` | own `## Result` |
+| Write `docs/product/`, owner tasks | only writer (the human ticks owner tasks) | no | no | no |
 | Change product code | no | within `Allowed files` | no | no |
 | Commit | memory and `tasks/` | one per task | no | no |
 | Merge | after acceptance | no | no | no |
 | Deploy, server, production | no | no | checks without changes | yes; production after the human's yes in the Deployer session |
 
-1. Workers never run Updating memory, Handoff, or Updating the runbook; they propose in `Proposed memory updates`, and the Orchestrator decides.
+1. Workers never run Updating memory, Handoff, or Updating the runbook; they propose in `Proposed memory updates` (and `Proposed spec changes`), and the Orchestrator decides. A worker that needs the human writes `Needs owner: <action>` in a `blocked` Result.
 2. One task = one fresh session.
 3. Parallel tasks share no file in `Allowed files`; each developer task has its own worktree.
 4. A worker that cannot continue writes `Outcome: blocked` with the question and stops: no guessing, no widening the task.
@@ -92,7 +97,7 @@ Developer: branches and commits. Orchestrator: merges and cleanup. Tester and De
 
 For Single Mode and the Orchestrator.
 
-1. Read this file, then `state/handoff.md`, `docs/project-plan.md`, `state/current-step.md`, and `state/tasks.md` if it has open tasks.
+1. Read this file, then `state/handoff.md`, `docs/project-plan.md`, `state/current-step.md`, `state/tasks.md` if it has open tasks, the open tasks of `state/owner-tasks.md` (not its journal), and `docs/product/00_INDEX.md` if it exists.
 2. Inspect the referenced files you need before asking.
 3. Summarize: goal, state, open tasks, next step, blockers, files likely to change.
 4. Do not repeat failed attempts from `state/known-issues.md`; do not invent missing context; ask only what the files cannot answer.
@@ -106,9 +111,31 @@ Orchestrator: read `roles/orchestrator.md`, then run Starting a new AI session.
 Worker:
 
 1. Read `roles/<role>.md` and these sections: Terms, Standing rules, Roles and memory ownership (Developer: also Git rules).
-2. Read the Task File completely, the files in its `Read first`, and related entries in `state/known-issues.md`. Not handoff, plan, or current-step unless the Task File lists them.
+2. Read the Task File completely, the files in its `Read first`, and related entries in `state/known-issues.md`. An entry `<file> - <IDs>` means only those sections of the file, plus the constraints the entry names; the whole file only when a named section cannot be understood without it. Not handoff, plan, or current-step unless the Task File lists them.
 3. State task, plan, and assumptions in 3-5 lines, then work to the end without asking for confirmation, except for your role's stop conditions.
 4. Finish by filling `## Result`.
+
+## Section: Owner tasks
+
+The human is the final word, not a dispatcher or a bottleneck. What only the human can do or decide goes into `state/owner-tasks.md` (skeleton `templates/owner-tasks.md`), and the work goes on around it.
+
+1. Writer: the Orchestrator or Single Mode. The human ticks tasks and answers in the file or in chat; the Orchestrator moves chat answers into the file. For a worker's `Needs owner:` the Orchestrator opens the task and sets the ledger `blocked` with `Notes: OWN-###`.
+2. One task = one action (one secret = one task), `OWN-###`, never reused: what to do (exact steps) -> what to return (form) -> what it unblocks (`ничего - финальное слово` allowed) -> when. Marks: `[ ]` open, `[~]` in progress, `[x]` done with date and short result, `[-]` withdrawn with reason. Secret values never go into the file, chat, or Markdown.
+3. **Blocking list.** Agents wait for the human only here, and only the affected work: an action only the human can do (key, token, account, login, payment); a production deploy ([Launching workers](#section-launching-workers), rule 3); a server change (new service, port, proxy or firewall rule, DB role or grant, secret, volume, domain); money beyond the project budget; new external access or personal data; an irreversible action without rollback; a feature outside the agreed MVP (it waits and is not built meanwhile). Anything else: go on with the recommended option, mark it as proposed, and ask in an owner task. Silence is not consent: an unanswered recommendation stays proposed.
+4. Journal at the end of the file: date, question or task, answer, where it landed. It is the only record of the human's answers on the product; an answer that changes how the project works also gets a `state/decisions.md` entry citing the journal date. Search the journal before asking the human anything.
+
+## Section: Product definition
+
+Active when `docs/product/00_INDEX.md` exists; otherwise skip this section. The same rules for the human, in Russian: `docs/product/05`-`08`; agents read those only when asked.
+
+1. Files (from `templates/product/`): `00_INDEX` navigation and the only gate register; `01_VISION` why; `02_BRIEF` for whom, MVP, limits, MVP metrics; `03_PRD` behaviour (`FR`), quality (`NFR`), acceptance (`AC`); `04_ARCHITECTURE` how, with decisions in `decisions/ADR-###.md`; `09_REVIEW` the Orchestrator's readiness report for the human, rewritten each round. One fact, one place: a lower document cites the upper ID and never restates it; a disagreement becomes a question `Q-*`, not a silent edit.
+2. Writer: the Orchestrator or Single Mode, from the human's words and research. Workers never edit `docs/product/`; they write `Proposed spec changes:` in the Result.
+3. Items: a heading `### <ID> — <title>`, then `- **Статус:** <status>` (FR, NFR, ADR) or `- **Source:** FR-###` (AC: the worst status of its FR / NFR sources). Vision and Brief carry one `status` in front matter. IDs are never reused.
+4. Spec status: `DRAFT`; `PROPOSED` once the agent check passed and an owner task asks for the human's word - implementable; `APPROVED` only from the human's answer in the owner journal - implementable; `STALE` when an upstream item changed - not implementable until re-checked (`PROPOSED`) or kept by the human (`APPROVED`); `SUPERSEDED` when replaced.
+5. Gates. Slice = one Stage of `docs/project-plan.md`. G0-G3: the Orchestrator checks the readiness lists of `01`-`04` for the slice, runs `python tools/gate.py spec` (no errors), writes `09_REVIEW.md`, sets the slice's items `PROPOSED`, opens one owner task "review the slice" and goes on. G4: `gate.py verify` per task and `gate.py stage N`. G5: an owner task to check the slice in live use against `B07` and `V03`. The human's word never holds a Stage open; a "not OK" becomes changed items and new tasks. Each gate goes into the register in `00_INDEX.md`, and only there.
+6. Tasks come only from implementable items. A developer task names them: `Spec: FR-012, AC-012, ADR-006`, or `Spec: none - <reason>` (chore, tooling), or `Spec: spike - <Q-ID>` (research before G3: the result goes to an ADR, the spike code is not merged). `Read first` lists `docs/product/<file> - <IDs>`. Task `Acceptance criteria` cite the AC they refine (`AC-012: ...`) and add no new obligation. Preflight checks this ([Launching workers](#section-launching-workers), rule 9).
+7. Change Impact, when an implementable item changes: write what and why, bump `version`; find dependents with `git grep -n "<ID>" docs/product tasks state`; mark dependent items `STALE`; set open tasks that name them `blocked` with `Notes: spec changed <ID>`; leave `done` tasks, a needed rework is a new task; a change of meaning, scope, or anything on the blocking list is an owner task.
+8. Reading: the Orchestrator reads `00_INDEX.md` and the sections it needs by ID, never all documents by default; workers read only their `Read first` sections; `05`-`09` are for the human.
 
 ## Section: Task lifecycle
 
@@ -123,12 +150,14 @@ Each family has one owner, and a label means one thing only.
 | Outcome | `## Result`, `Outcome:`; worker | `completed`; `blocked` (question in the Result); `failed` (why in the Result) |
 | Role result | `## Result`; worker | Developer `Change: <SHA>`; Tester `Verdict:` `pass`, `partial`, `unverified`, `fail` = the worst criterion; Deployer `Deployment:` `deployed`, `rolled-back`, `not-started` |
 | Stage state | `docs/project-plan.md`; Orchestrator | `planned`, `current`, `closed` |
+| Spec status | `docs/product/` item `Статус:` (Vision, Brief: front matter); Orchestrator | `DRAFT`, `PROPOSED`, `APPROVED` (only from the owner journal), `STALE`, `SUPERSEDED` ([Product definition](#section-product-definition)) |
+| Owner task | `state/owner-tasks.md`; Orchestrator, the human ticks | `[ ]` open, `[~]` in progress, `[x]` done, `[-]` withdrawn |
 
 `tools/ledger.py` enforces the transitions: `ready` -> `in progress` / `blocked` / `cancelled`; `in progress` -> `review` / `blocked` / `rejected` / `cancelled`; `review` -> `done` / `rejected` / `in progress` / `blocked`; `blocked` -> `ready` / `in progress` / `review` / `cancelled`. `done`, `rejected`, `cancelled` are final. Task IDs are never reused.
 
 ### Flow
 
-1. The Orchestrator writes the Task File and adds the ledger row (`ready`). `Independent check:` is `tester` for a user-visible or risky change (data, auth, deploy scripts, shared config), otherwise `none - <reason>`; the human sees it in the plan.
+1. The Orchestrator writes the Task File (with Product definition: `Spec:`) and adds the ledger row (`ready`). `Independent check:` is `tester` for a user-visible or risky change (data, auth, deploy scripts, shared config), otherwise `none - <reason>`; the human sees it in the plan.
 2. Launch ([Launching workers](#section-launching-workers)); ledger `in progress`.
 3. The worker fills `## Result`.
 4. The Orchestrator sets `review` and decides:
@@ -187,7 +216,7 @@ Who: the Orchestrator (or the human). Per tool: Tool Routing.
 
 1. Every attempt starts through `tools/run-task.ps1` and passes the same gate. `T-NNN <tool>` prepares the worktree or checkout and the environment and opens a visible window with a log. `T-NNN -Manual` runs the same gate and preparation for a session a human starts (Antigravity IDE, the Deployer, a live Tester on production), prints folder, environment, and prompt, and is closed with `-MarkFinished`. No hand-written launch scripts.
 2. Visible windows only, unless the human allows otherwise for this session: the window is how the human can stop a worker.
-3. The Deployer and a live Tester on production run only in the session the human designated (`-Manual`). The Orchestrator starts no deployer itself and gives no tool full access to production. Production approval comes from the human in that session, never through the Orchestrator.
+3. The Deployer is an agent session of the platform project named in Project rules `## Deploy` (its folder, the contract, the request file, the deploy script); without one, the session the human designates. The Orchestrator starts no deployer itself and gives no tool full access to production: it prepares the attempt with `-Manual`, adds the request to the request file, and messages that session where the host allows (Claude Code `SendMessage`); `-Wait` wakes it when the Result appears. The platform session writes only the deploy Task File's `## Result` and the request's status line. Staging: deployed on that request, through the contract script, with no server change. Production approval comes from the human in that session, never through the Orchestrator; the Orchestrator opens an owner task for it and other work goes on. A live Tester on production runs only in the session the human designated (`-Manual`).
 4. Permissions come from the launcher's tool flags, not from prompts; a tool that asks to trust each new folder gets the worker folder pre-approved by the launcher (Antigravity CLI), and the entry is removed on cleanup. Full access: only a Developer in its own worktree. A Tester gets review isolation; prefer Codex for Tester tasks.
 5. The launcher prepares what the task needs before the start (`## Setup`: links, copies, env); a task `blocked` on a missing environment is an Orchestrator error. Parallel tasks get different `PORT`s (`## Port`); tests read it from the environment.
 6. The model is part of the launch: the Task File's `Model:` (tier or listed id) and `Effort:` are resolved by `tools/models.json` (per-machine override `AGENTFLOW_MODEL_<TOOL>_<TIER>`), passed as the tool's own flags, and recorded per attempt; absent or `default` = the tool's setting, no flag. Preflight refuses a value the table does not list for the launch tool. Choice: Tool Routing, Choosing the model.
@@ -197,6 +226,7 @@ Who: the Orchestrator (or the human). Per tool: Tool Routing.
    - a `Depends on` task not `done`;
    - Tester: pre-merge, the checked task lacks `Outcome: completed` with `Change` = the `Verifies` SHA, or its branch moved; live, the SHA is not merged. Deployer: the SHA is not merged;
    - a Deployer or a live Tester on production without `-Manual`;
+   - with Product definition: a developer task without `Spec:`; a `Spec:` item that does not exist or is not `PROPOSED` / `APPROVED`; any `Allowed files` under `docs/product/`;
    - overlap with an open task (`in progress`, `review`, or a running attempt) in `Allowed files` or `Rebuild together`, or a `Port` of a running attempt; an open task whose Task File cannot be read;
    - the task itself: `Allowed files` inside `Do not touch`; empty or template `Acceptance criteria` or `## Checks`; a developer task without `Independent check` or with a `Branch` not starting with `t-NNN-`; a missing `## Setup` source; `env: AGENTFLOW_*`;
    - project patterns from `## Preflight` in Project rules, applied to the `## Checks` commands and `## Setup` lines of local tasks: `- deny: <regex>` (no command may match: production hosts, destructive commands) and `- require: <regex> => <regex>` (for example `playwright test => --project=local`).
@@ -215,6 +245,7 @@ Who: Single Mode or the Orchestrator, after meaningful work or before ending a l
 5. `state/known-issues.md`: a dead end, error, false lead, or constraint.
 6. `docs/project-plan.md` if the roadmap changed.
 7. Accepted `Proposed memory updates` go into these files; a rejected one gets a line with the reason in the session log.
+8. `state/owner-tasks.md`: new owner tasks, closed ones, and a journal row for every answer the human gave in chat.
 
 ## Section: Handoff (short transfer note)
 
@@ -248,11 +279,12 @@ For the human, not for agents: a read-only view of the ledger, Task Files, and g
 
 Who: a Single Mode session, on the human's request. Version: `AgentFlow version:` in `AGENTS.md`.
 
-- Template-owned, replaced on update: `AGENTS.md` above `## Project rules`, `CLAUDE.md`, `.claude/commands/`, this file, `roles/`, `tasks/_template.md`, `tools/`, `dashboard/`.
-- Project-owned, never overwritten: everything else (`state/`, `docs/project-plan.md`, `runbook/`, `screenshots/`, Task Files, Project rules).
+- Template-owned, replaced on update: `AGENTS.md` above `## Project rules`, `CLAUDE.md`, `.claude/commands/`, this file, `roles/`, `tasks/_template.md`, `tools/`, `dashboard/`, and in a project with Product definition `docs/product/05_*`-`08_*`.
+- Copied once, then project-owned: `templates/owner-tasks.md` -> `state/owner-tasks.md`; `templates/product/00_*`-`04_*`, `09_*` -> `docs/product/` (when the human wants a Product definition). The `templates/` folder itself is not copied.
+- Project-owned, never overwritten: everything else (`state/`, `docs/project-plan.md`, `docs/product/` except `05`-`08`, `runbook/`, `screenshots/`, Task Files, Project rules).
 - Template-only, never copied: `README.md`, `GUIDE.md`, `CHANGELOG.md`, `LICENSE`, the template's own `state/` and `docs/project-plan.md`.
 - A project rule never goes into a template-owned file, only into Project rules.
 
-Install: the project needs git with a main branch and one commit. Copy the template-owned files and append the template's `.gitignore` lines; move rules from the project's earlier `CLAUDE.md` / `AGENTS.md` under `## Project rules`; create the memory from the real project state ([What goes where](#what-goes-where); `python tools/ledger.py show` creates the ledger); in Project rules name `<worktrees>` and add `## Preflight` (deny production hosts, require the local flags of test commands). A test config that reaches staging or production by default: tell the human, do not fix it here. No product code changes; one commit.
+Install: the project needs git with a main branch and one commit. Copy the template-owned files and append the template's `.gitignore` lines; move rules from the project's earlier `CLAUDE.md` / `AGENTS.md` under `## Project rules`; create the memory from the real project state ([What goes where](#what-goes-where); `python tools/ledger.py show` creates the ledger) and `state/owner-tasks.md` from its skeleton; in Project rules name `<worktrees>`, add `## Preflight` (deny production hosts, require the local flags of test commands) and, if the project is deployed, `## Deploy` (platform project folder, contract, request file, deploy script). If the human wants a Product definition, copy `templates/product/` to `docs/product/` and fill the placeholders in `00_INDEX.md` only. A test config that reaches staging or production by default: tell the human, do not fix it here. No product code changes; one commit.
 
 Update: compare `AgentFlow version` with the template's and read the template's `CHANGELOG.md` entries in between. Show the human the rules the project added inside template-owned files; after agreement move them to Project rules and replace the template-owned files. Apply the migration notes to open Task Files and the ledger; touch no other project-owned file; add a dated entry to `state/decisions.md`; one commit.

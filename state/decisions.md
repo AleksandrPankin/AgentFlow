@@ -107,3 +107,37 @@ Why: the trust prompt for every new worktree blocked unattended runs, and the li
 Decision: Task Files name `Model: small | standard | strong` (or a listed id) and `Effort:`; `tools/models.json` maps them per tool, an env variable overrides per machine, preflight refuses what the table does not list, the attempt records what ran. No `Model:` line = no flag.
 
 Why: workers ran on whatever the user-level settings said, unrecorded, and the Orchestrator had no cost lever (Calbot). A tier survives model releases; one table changes, not every Task File. Rejected: model ids in Task Files by default (stale on every release), ids in the script.
+
+## 2026-10-09
+
+Context: the human added a product definition layer (Vision, Brief, PRD, Architecture, gates, authority, document rules) drafted outside the template, plus field evidence from a live project (an owner task queue with an answer journal; the owner started a slice before its gates were approved). Checked against FPF (A.7, A.2.6, A.2.9, A.6.B, A.10, A.16, B.3.4, C.16, E.17, F.17) before integration; plan and findings: `state/plan-2.4.0.md` (deleted on release).
+
+### Product definition is optional and lives in `docs/product/`
+
+Decision: active only when `docs/product/00_INDEX.md` exists; skeletons in `templates/product/`, copied once, then project-owned. Process rules are stated once in the protocol; `05`-`08` are Russian explanations for the human, template-owned, updated in the same commit as the protocol section; agents read them only when asked.
+
+Why: projects without product docs (brownfield, small tools) must keep working as before; per-project copies of process rules drift from the protocol. Rejected: copying `05`-`07` as project rules (two sources of one rule); merging Vision and Brief into one file (G0 and G1 are separate decisions).
+
+### The human's word is final but non-blocking
+
+Decision: agents run the gates, set items `PROPOSED` (implementable), and open an owner task; `APPROVED` only from the human's answer in the owner journal. The work waits for the human only on the blocking list.
+
+Why: the human did not want to be the bottleneck; a late "not OK" costs rework, which the human accepted. Rejected: G0-G3 approval before any task (the live project skipped it in practice); owner tasks as Task Files with `Role: human` (launch, verify, `-Wait`, and the Stage check are worker machinery; a human act is not a worker's Work).
+
+### One place per fact in the product layer
+
+Decision: the gate register only in `00_INDEX.md`; the human's answers only in the owner journal; FR priority only in the FR block; AC points to its FR, not the reverse; no change-history tables (git); Architecture sections `AR01`-`AR10` (no clash with `T-NNN`); slice = Stage; a task links items through `Spec:`, never copies them.
+
+Why: the draft stored approval in four places and status in two, which FPF A.10 / SSOT reading flagged as drift risk.
+
+### Spec items are checked by code
+
+Decision: `gate.py spec` lints items; preflight refuses a developer task without `Spec:` or with an item that is missing or not `PROPOSED` / `APPROVED`, and any `Allowed files` under `docs/product/`.
+
+Why: enforcement before prose (2026-10-03). Rejected: deferring the check until after a pilot.
+
+### Deploy through the platform project
+
+Decision: the Deployer is an agent session of the platform project named in Project rules `## Deploy`; the Orchestrator requests; staging without the human when no server changes; production keeps the human's yes in that session (supersedes only the "session the human designated" part of the 2026-10-03 decision).
+
+Why: the human's projects already deploy through one platform project with contract scripts. Considered and rejected by the human: production without a yes when a recomputed git-diff risk check is clean.
