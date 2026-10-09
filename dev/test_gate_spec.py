@@ -6,8 +6,10 @@ Builds a throwaway git repository in the temp folder from tools/, tasks/_templat
 runs every case, prints PASS / FAIL per case, exits 1 on any failure. Template development only: never copied into projects.
 """
 import json
+import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -31,7 +33,7 @@ Stage: 1
 {spec}
 Depends on: none
 Branch: t-001-test
-Worktree: D:\\tmp\\box-t-001-test
+Worktree: {worktree}
 Independent check: none - sandbox
 
 ## Goal
@@ -64,8 +66,17 @@ Test.
 fails = 0
 
 
-def task(spec, allowed="src/a.py"):
-    (box / "tasks" / "T-001-test.md").write_text(TASK.format(spec=spec, allowed=allowed), encoding="utf-8")
+def task(spec, allowed="src/a.py", worktree="D:\\tmp\\box-t-001-test", result=""):
+    (box / "tasks" / "T-001-test.md").write_text(TASK.format(spec=spec, allowed=allowed, worktree=worktree) + result, encoding="utf-8")
+
+
+def git(*args, cwd=None):
+    return subprocess.run(["git", "-C", str(cwd or box), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+def ledger(*args):
+    subprocess.run([sys.executable, str(box / "tools" / "ledger.py"), *args], capture_output=True, check=True)
 
 
 def gate(*args):
@@ -193,6 +204,48 @@ for name, value, needle in (("Must with a comment", "Must — ядро MVP", "Mu
 prd(base + "\n### FR-006 — no priority\n\n- **Статус:** PROPOSED\n- **Source:** B04\n")
 lint("spec: FR without a priority", False, "FR-006 (")
 
-shutil.rmtree(box, ignore_errors=True)
+# 6. acceptance re-checks the spec; the main folder stays on the main branch
+proposed = base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** PROPOSED\n- **Source:** B04 / UC-001")
+prd(proposed)
+git("checkout", "-q", "-b", "side")
+pf("preflight, main folder on a side branch", False, "Spec: FR-001", needle="main folder is on 'side'")
+git("checkout", "-q", "main")
+wt = box.parent / f"{box.name}-t-001-test"
+git("worktree", "add", "-q", str(wt), "-b", "t-001-test")
+(wt / "src").mkdir()
+(wt / "src" / "a.py").write_text("x = 1\n", encoding="utf-8")
+git("add", "src/a.py", cwd=wt)
+git("commit", "-q", "-m", "[T-001] feat: a", cwd=wt)
+sha = git("rev-parse", "HEAD", cwd=wt)
+task("Spec: FR-001, AC-001", worktree=str(wt), result=f"Outcome: completed\nChange: {sha} on t-001-test\n")
+(box / "tasks" / ".runtime").mkdir(parents=True, exist_ok=True)
+gate("task", "T-001", "--out", str(box / "t.json"))
+baseline = json.loads((box / "t.json").read_text(encoding="utf-8"))["baseline"]
+(box / "tasks" / ".runtime" / "T-001.json").write_text(json.dumps({"taskId": "T-001", "attempts": [{"n": 1, "status": "exited", "baseline": baseline}]}), encoding="utf-8")
+code, out = gate("verify", "T-001")
+case("verify, FR-001 PROPOSED", True, out, code == 0)
+prd(proposed.replace("PROPOSED", "STALE", 1))
+code, out = gate("verify", "T-001")
+case("verify, FR-001 went STALE during the attempt", False, out, code == 0, "FR-001 is STALE")
+prd(proposed)
+gate("verify", "T-001")
+for args in (("add", "T-001", "--stage", "1", "--role", "developer"), ("set", "T-001", "--status", "in progress"),
+             ("set", "T-001", "--status", "review"), ("set", "T-001", "--status", "done", "--commit", sha)):
+    ledger(*args)
+code, out = gate("stage", "1")
+case("stage 1", True, out, code == 0)
+prd(proposed.replace("PROPOSED", "STALE", 1))
+code, out = gate("stage", "1")
+case("stage 1, a done task's FR-001 STALE", False, out, code == 0, "T-001: Spec FR-001 is STALE")
+prd(proposed)
+git("checkout", "-q", "side")
+code, out = gate("stage", "1")
+case("stage 1, main folder on a side branch", False, out, code == 0, "main folder is on 'side'")
+git("checkout", "-q", "main")
+git("worktree", "remove", "--force", str(wt))
+
+for p in (wt, box):  # git objects are read-only on Windows: make them writable, then delete (onexc: Python 3.12+)
+    if p.exists():
+        shutil.rmtree(p, onexc=lambda f, path, _: (os.chmod(path, stat.S_IWRITE), f(path)))
 print(f"\n{'ALL PASS' if not fails else f'{fails} FAILED'}")
 sys.exit(1 if fails else 0)

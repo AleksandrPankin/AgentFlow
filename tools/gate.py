@@ -106,8 +106,13 @@ def git_ok(*args, cwd=ROOT):
     return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True).returncode == 0
 
 
-def main_branch():
-    return git("rev-parse", "--abbrev-ref", "HEAD") or "main"
+def main_branch():  # protocol: Git rules 2, the main folder stays on main or master
+    return next((b for b in ("main", "master") if git_ok("show-ref", "--verify", "--quiet", f"refs/heads/{b}")), "main")
+
+
+def main_folder_problems():
+    head, main = git("rev-parse", "--abbrev-ref", "HEAD"), main_branch()
+    return [] if head == main else [f"main folder is on '{head}', needs '{main}' (protocol: Git rules 2)"]
 
 
 def parse(tid):
@@ -301,8 +306,8 @@ def item_status(items, iid, docs):
     return invalid[0] if invalid else max(cands, key=lambda c: SPEC_STATUSES.index(c[0]))
 
 
-def spec_status_problems(spec):
-    """Items named by a "Spec:" line that are missing or not implementable."""
+def spec_status_problems(spec, stale_only=False):
+    """Items named by a "Spec:" line that are missing or not implementable; stale_only: STALE ones (Stage check)."""
     if not spec or re.match(r"^(none|spike)\b", spec):
         return []
     items, _ = spec_items()
@@ -310,9 +315,9 @@ def spec_status_problems(spec):
     for i in re.findall(SPEC_REF, spec):
         if i in items and (i.split("-")[0] in STATUS_KINDS or i.startswith("AC-")):
             st, where = item_status(items, i, docs)
-            if st not in IMPLEMENTABLE:
+            if (st == "STALE") if stale_only else (st not in IMPLEMENTABLE):
                 bad.append(f"Spec {i} is {st if st in SPEC_STATUSES else 'without a valid status'} ({where}), needs PROPOSED or APPROVED")
-        elif i not in items:
+        elif i not in items and not stale_only:
             text = text if text is not None else "\n".join(f.read_text(encoding="utf-8-sig") for f in spec_files())
             if i.split("-")[0] in STATUS_KINDS + ("AC",) or not re.search(rf"\b{re.escape(i)}\b", text):
                 bad.append(f"Spec {i} not found in docs/product/")
@@ -394,6 +399,7 @@ def preflight(tid, manual, live, tool=None):
     status = {k: v.get("Status", "") for k, v in led.items()}
     role, pre_merge = t["role"], t["role"] == "tester" and t["target"] == "local"
 
+    bad += main_folder_problems()  # worktrees and checkouts branch from it
     if not manual and role == "deployer":
         bad.append("a Deployer runs in the platform project session (Project rules ## Deploy) or one the human designated: use -Manual")
     if not manual and role == "tester" and t["target"] == "prod":
@@ -432,11 +438,11 @@ def preflight(tid, manual, live, tool=None):
                 bad.append(f"checked task {checked} has no Result with Outcome: completed")
             elif not (field(c["result"], "Change") or "").lower().startswith(t["sha"][:7]):
                 bad.append(f"checked task {checked} Result Change is not {t['sha']}")
-        elif not git_ok("merge-base", "--is-ancestor", t["sha"], "HEAD"):
+        elif not git_ok("merge-base", "--is-ancestor", t["sha"], main_branch()):
             bad.append(f"commit {t['sha']} is not merged into the main branch")
         if checked in live:
             bad.append(f"checked task {checked} still has a live worker")
-    if role == "deployer" and not git_ok("merge-base", "--is-ancestor", t["sha"], "HEAD"):
+    if role == "deployer" and not git_ok("merge-base", "--is-ancestor", t["sha"], main_branch()):
         bad.append(f"commit {t['sha']} is not merged into the main branch")
 
     # other tasks: issued and not accepted (ledger) or with a worker process (runtime, also mid-launch or manual)
@@ -597,6 +603,7 @@ def verify(tid):
     outcome = result_field(t, "Outcome")
     if outcome != "completed":
         bad.append(f"Result Outcome is '{outcome}', needs 'completed'")
+    bad += main_folder_problems()
     sha = t.get("sha")
 
     if t["role"] == "developer":
@@ -623,6 +630,8 @@ def verify(tid):
                     bad.append(f"independent check pending: no done tester task with Verdict pass for {tid} @ {sha[:7]}")
             elif not ind.startswith("none"):
                 bad.append('Task File needs "Independent check: tester | none - <reason>"')
+        if (PRODUCT / "00_INDEX.md").exists():  # the spec may have changed during the attempt (Change Impact)
+            bad += spec_status_problems(t.get("spec"))
     elif t["role"] == "tester":
         vb, v = verdict_problems(t["result"])
         bad += vb
@@ -669,6 +678,8 @@ def stage(n):
     log = RUNTIME / f"stage-{n}.log"
     RUNTIME.mkdir(parents=True, exist_ok=True)
     log.write_text("", encoding="utf-8")
+    off_main = main_folder_problems()  # the Checks run in the main folder: on another branch they prove nothing
+    bad += off_main
     for r in rows:
         try:
             t = parse(r["ID"])
@@ -676,7 +687,10 @@ def stage(n):
             bad.append(f"{r['ID']}: {e}")
             continue
         if t["role"] == "developer":
-            bad += [f"{r['ID']} check failed on {main_branch()} (exit {c['exit']}): {c['cmd']}" for c in run_checks(t, ROOT, log) if c["exit"]]
+            if (PRODUCT / "00_INDEX.md").exists():
+                bad += [f"{r['ID']}: {p}" for p in spec_status_problems(t.get("spec"), stale_only=True)]
+            if not off_main:
+                bad += [f"{r['ID']} check failed on {main_branch()} (exit {c['exit']}): {c['cmd']}" for c in run_checks(t, ROOT, log) if c["exit"]]
     print(f"Stage {n}: {'PASS' if not bad else 'FAIL'} ({len(rows)} tasks, log {log})")
     for b in bad:
         print(f"  - {b}")

@@ -171,14 +171,14 @@ Each family has one owner, and a label means one thing only.
 | Tester `Verdict` not `pass` | reject the checked task; the Tester task is `done` when its verify passes | checked task `rejected` |
 | Deployer `rolled-back` | reject the Deployer task; accepted code stays `done` (accepted is not deployed); the fix is a new developer task | Deployer task `rejected` |
 
-5. A Stage closes when its tasks are `done` (rejected or cancelled ones replaced by `done` successors) and `python tools/gate.py stage <N>` passes on the main branch; then update the plan.
+5. A Stage closes when its tasks are `done` (rejected or cancelled ones replaced by `done` successors) and `python tools/gate.py stage <N>` passes on the main branch (Checks pass, no `Spec:` item of its tasks `STALE`); then update the plan.
 
 ### Acceptance
 
 Acceptance is the event `review` -> `done`; `tools/ledger.py` allows it only after `gate.py verify` passed on that SHA. The verify record (`tasks/.runtime/T-NNN.verify.json`: attempt, SHA, target, check exit codes, log) is the evidence. Verify requires:
 
-- the last attempt `exited`, the Task File above `## Result` unchanged, `Outcome: completed`;
-- Developer: branch, clean worktree, and `Change` at one SHA; `git diff <main>...<SHA>` inside `Allowed files`; every `## Checks` command passing there with `AGENTFLOW_TARGET=local`; with `Independent check: tester`, a `done` Tester task with `Verdict: pass` for this SHA;
+- the last attempt `exited`, the Task File above `## Result` unchanged, `Outcome: completed`, the main folder on the main branch;
+- Developer: branch, clean worktree, and `Change` at one SHA; `git diff <main>...<SHA>` inside `Allowed files`; every `## Checks` command passing there with `AGENTFLOW_TARGET=local`; with `Independent check: tester`, a `done` Tester task with `Verdict: pass` for this SHA; with Product definition, its `Spec:` items still implementable (a spec changed during the attempt fails it);
 - Tester: `Verdict` equal to its worst criterion;
 - Deployer: `Deployment: deployed`, `Smoke` pass, and for production `Approval: source=human target=prod sha=<SHA> at=<time>`.
 
@@ -223,6 +223,7 @@ Who: the Orchestrator (or the human). Per tool: Tool Routing.
 7. The human states the remaining limit per tool at session start (`tools/run-task.ps1 -Limits` shows the last limit hit per tool with its log line); the Orchestrator keeps it in the conversation, not in files, and picks fallbacks from it.
 8. **Maximize safe parallelism.** A task is ready when it is `ready` and every `Depends on` task is `done`. Launch every ready task that shares no `Allowed files`, `Port`, or `Rebuild together` with an open one: parallelism = min(ready tasks, free tool capacity, environment capacity). No fixed number of agents; refill a free slot at once.
 9. **Preflight** (`gate.py preflight`) refuses a launch with the full list of problems, before anything is created:
+   - the main folder not on the main branch (worktrees branch from it);
    - a `Depends on` task not `done`;
    - Tester: pre-merge, the checked task lacks `Outcome: completed` with `Change` = the `Verifies` SHA, or its branch moved; live, the SHA is not merged. Deployer: the SHA is not merged;
    - a Deployer or a live Tester on production without `-Manual`;
