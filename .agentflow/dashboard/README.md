@@ -1,6 +1,6 @@
 # Dashboard
 
-A read-only view of the project for the human (Russian interface): task table and filters (`out/index.html`), Gantt, timeline and links (`out/graph.html`). It never changes the project; it reads `docs/tasks/tasks.md` (Task Ledger), `docs/tasks/T-*.md` (Task Files) and git history. Template-owned: see `.agentflow/protocol.md`, section "Dashboard".
+A read-only view of the project for the human (Russian interface): task table and filters (`out/index.html`), Gantt, Kanban by status (read-only, no dragging), timeline and links (`out/graph.html`). It never changes the project; it reads `docs/tasks/tasks.md` (Task Ledger), `docs/tasks/T-*.md` (Task Files) and git history. Template-owned: see `.agentflow/protocol.md`, section "Dashboard".
 
 ## Use
 

@@ -179,7 +179,7 @@ details.hint2 summary{cursor:pointer;color:var(--mut);font-size:12px}
     <select id="zoom" hidden><option value="1">вписать</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option></select>
     </section>
   <section class="pn" id="linesCard">
-    <h3>Линии связей · Гант и конвейер</h3>
+    <h3>Линии связей · Гант и канбан</h3>
     <div class="lines">
       <label class="ln"><svg class="ls" data-k="dep" width="34" height="12"></svg><span>Зависимость</span><em id="cDep"></em><input type="checkbox" id="oAll" checked><s class="sw"></s></label>
       <label class="ln"><svg class="ls" data-k="dead" width="34" height="12"></svg><span>Зависит от отклонённой или отменённой</span><em id="cDead"></em><input type="checkbox" id="oDead" checked><s class="sw"></s></label>
@@ -199,7 +199,7 @@ details.hint2 summary{cursor:pointer;color:var(--mut);font-size:12px}
 </aside>
 
 <main id="mainc">
-  <div class="row" style="margin:0"><span class="seg2"><button class="btn" id="vGantt">Гант со связями</button><button class="btn" id="vBoard">Конвейер по статусам</button><button class="btn" id="vSum">Сроки и сводка</button></span></div>
+  <div class="row" style="margin:0"><span class="seg2"><button class="btn" id="vGantt">Гант со связями</button><button class="btn" id="vBoard">Канбан по статусам</button><button class="btn" id="vSum">Сроки и сводка</button></span></div>
   <div class="card" style="margin:0;padding:8px 12px">
     <div class="slider"><span class="mut">Состояние на момент:</span>
       <button class="btn" id="prev">◀</button><input type="range" id="asof" min="0" value="0"><button class="btn" id="next">▶</button>
@@ -229,7 +229,7 @@ details.hint2 summary{cursor:pointer;color:var(--mut);font-size:12px}
   <details><summary>Что значат статусы: Отклонена, Отменена, В очереди</summary><div class="note" id="statusHelp" style="margin-top:4px"></div></details></div>
 </main>
 
-<aside id="detail"><h2>Задача</h2><div class="mut">Клик по задаче (в Ганте или на конвейере) — история статусов, связей и постановщик. Панель закреплена справа и не двигается при прокрутке Ганта.</div></aside>
+<aside id="detail"><h2>Задача</h2><div class="mut">Клик по задаче (в Ганте или на канбане) — история статусов, связей и постановщик. Панель закреплена справа и не двигается при прокрутке Ганта.</div></aside>
 </div>
 
 <script>

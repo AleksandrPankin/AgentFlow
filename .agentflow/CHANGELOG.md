@@ -2,6 +2,10 @@
 
 What changed in each AgentFlow version. Why it changed: the template's `docs/state/decisions.md` (before 3.0.0: `state/decisions.md`). The version of an installed project: `AgentFlow version:` in its `AGENTS.md`. Entries before 3.0.0 name the 2.x paths of their time.
 
+## Unreleased
+
+- Dashboard: the view "Конвейер по статусам" is renamed "Канбан по статусам" (it is a read-only Kanban board: columns are ledger statuses, no dragging). Interface and docs only; no data contract or script change.
+
 ## 3.0.0 - 2026-10-09
 
 Breaking: new layout; a project moves to it once, by the procedure below.

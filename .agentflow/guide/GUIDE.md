@@ -195,7 +195,7 @@ VS Code → открыть папку проекта → новая сессия
 
 ## Дашборд
 
-Дашборд — твой инструмент, не агентов: таблица задач, фильтры, Гант, сроки и связи между задачами. Он только читает `docs/tasks/tasks.md`, `docs/tasks/T-*.md` и git и ничего не меняет.
+Дашборд — твой инструмент, не агентов: таблица задач, фильтры, Гант, канбан по статусам, сроки и связи между задачами. Он только читает `docs/tasks/tasks.md`, `docs/tasks/T-*.md` и git и ничего не меняет.
 
 1. Запусти сервер: `python .agentflow\dashboard\serve.py`. Он сам соберёт страницы и откроет браузер на `http://127.0.0.1:8765`. Кнопка ↻ в шапке (между «Собрано …» и темой) пересобирает обе страницы целиком и обновляет текущую.
 2. Без сервера: `python .agentflow\dashboard\build.py`, затем открой файл `.agentflow\dashboard\out\index.html` (обзор) или `.agentflow\dashboard\out\graph.html` (Гант и сроки). Кнопка ↻ в этом режиме неактивна.
@@ -236,6 +236,6 @@ VS Code → открыть папку проекта → новая сессия
 | Где упёрлись в лимит | `.agentflow\tools\run-task.ps1 -Limits` |
 | Запустить задачу вручную | `.agentflow\tools\run-task.ps1 T-NNN <codex\|claude\|agy>` |
 | Таблица задач | `python .agentflow\tools\ledger.py show` |
-| Дашборд (обзор, Гант) | `python .agentflow\dashboard\serve.py`, кнопка ↻ обновляет |
+| Дашборд (обзор, Гант, канбан) | `python .agentflow\dashboard\serve.py`, кнопка ↻ обновляет |
 | Закрыть день | `/update-memory`, затем `/handoff-cmd` |
 | Работа без команды | `/start-session` … `/update-memory` |
