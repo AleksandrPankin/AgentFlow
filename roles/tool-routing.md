@@ -60,8 +60,8 @@ Above `strong`, by explicit id only and with a reason in the ledger `Notes`: `cl
 |---|---|---|
 | mechanical: skeleton, config, renames, Task File or doc fixes, glue | small | default (Codex, agy: low) |
 | ordinary feature with clear criteria and tests | standard | default |
-| Tester of a risky or user-visible change; adversarial or mutation reading | strong | high |
-| silent or costly failure: access control, writes to external systems, data loss, security, concurrency, probabilistic output (routing, extraction) | strong | high or xhigh |
+| Tester of a `Risk: risky` or `critical` task; adversarial or mutation reading | strong | high |
+| `Risk: critical`, or `risky` with a silent failure (concurrency, probabilistic output); scale: protocol, Task lifecycle, Flow 1 | strong | high or xhigh |
 | large read-only reading of code, logs, data | the tool with the longest context, tier by risk | low |
 | Deployer | not set by the Orchestrator: the platform project's session | - |
 
@@ -70,7 +70,7 @@ Rules:
 1. Start at the cheapest tier that fits the risk; judge cost per accepted task, not per attempt: a cheap attempt that is rejected and redone costs more.
 2. Before a stronger model, try more effort on the same one; a newer model at lower effort often matches an older one at high effort.
 3. A task that failed twice on `standard` is retried on `strong` before it is split or rejected again.
-4. Short quota and a low-risk task: lower the tier; never for the Tester of a risky change.
+4. Short quota and a `Risk: low` task: lower the tier; never for the Tester of a `risky` or `critical` task.
 5. A choice that differs from the table goes to the ledger `Notes` with the reason.
 
 Sources (2026-10-06): installed CLI help (`claude --help` 2.1.291, `codex exec --help` 0.130.0, `agy --help` and `agy models` 1.3.0); Anthropic model guidance (Opus 5.5 default model, Sonnet 5.5 for everyday coding and agents, Haiku 4.5 for sub-agents and simple tasks; effort `low` for simple tasks and sub-agents, at least `high` for intelligence-sensitive work, `max` when correctness outweighs cost); OpenAI model descriptions in the Codex model catalog (Astra "frontier intelligence for the most demanding work", 6.1 Sol "workhorse for coding and everyday work", Luna "fast and affordable for easier tasks"). Gemini Flash over Pro for coding agents is public practice, not a vendor statement. Rules 1, 3-5: AgentFlow practice.

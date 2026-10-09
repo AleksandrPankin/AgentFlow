@@ -28,13 +28,15 @@ subprocess.run(["git", "-C", str(box), "-c", "user.email=t@t", "-c", "user.name=
 TASK = """# T-001: test
 
 Role: developer
-Tool: claude
+Tool: {tool}
 Stage: 1
 {spec}
 Depends on: none
 Branch: t-001-test
 Worktree: {worktree}
-Independent check: none - sandbox
+Risk: {risk}
+Independent check: {independent}
+{head}
 
 ## Goal
 
@@ -51,7 +53,7 @@ Test.
 ## Do not touch
 
 - `tools/`
-
+{deny}
 ## Acceptance criteria
 
 - [ ] AC-001: it works
@@ -66,8 +68,10 @@ Test.
 fails = 0
 
 
-def task(spec, allowed="src/a.py", worktree="D:\\tmp\\box-t-001-test", result=""):
-    (box / "tasks" / "T-001-test.md").write_text(TASK.format(spec=spec, allowed=allowed, worktree=worktree) + result, encoding="utf-8")
+def task(spec, allowed="src/a.py", worktree="D:\\tmp\\box-t-001-test", result="", tid="T-001", tool="claude", risk="low",
+         independent="none - sandbox", head="", deny=""):
+    text = TASK.format(spec=spec, allowed=allowed, worktree=worktree, tool=tool, risk=risk, independent=independent, head=head, deny=deny)
+    (box / "tasks" / f"{tid}-test.md").write_text(text + result, encoding="utf-8")
 
 
 def git(*args, cwd=None):
@@ -97,8 +101,8 @@ def case(name, ok_expected, problems_or_out, ok, needle=None):
     print(f"{'PASS' if good else 'FAIL'}  {name}: ok={ok}  {text.strip()[:220]}")
 
 
-def pf(name, ok_expected, spec, allowed="src/a.py", needle=None):
-    task(spec, allowed)
+def pf(name, ok_expected, spec, allowed="src/a.py", needle=None, **kw):
+    task(spec, allowed, **kw)
     code, probs = preflight()
     case(name, ok_expected, probs, code == 0, needle)
 
@@ -204,7 +208,27 @@ for name, value, needle in (("Must with a comment", "Must — ядро MVP", "Mu
 prd(base + "\n### FR-006 — no priority\n\n- **Статус:** PROPOSED\n- **Source:** B04\n")
 lint("spec: FR without a priority", False, "FR-006 (")
 
-# 6. acceptance re-checks the spec; the main folder stays on the main branch
+# 6. risk: risky and critical need the Tester; critical needs a done acceptance test task on another tool or model
+S = "Spec: none - risk cases"
+pf("Risk missing", False, S, risk="", needle="needs \"Risk:")
+pf("Risk unknown word", False, S, risk="medium", needle="got 'medium'")
+pf("Risk risky without Tester", False, S, risk="risky", needle="Risk: risky needs Independent check: tester")
+pf("Risk risky with Tester", True, S, risk="risky", independent="tester")
+pf("Risk critical without Acceptance test", False, S, risk="critical", independent="tester", needle="needs \"Acceptance test")
+task("Spec: none - acceptance test", allowed="tests/test_a.py", tid="T-002")
+ledger("add", "T-002", "--role", "developer")
+crit = dict(risk="critical", independent="tester", head="Acceptance test: T-002")
+pf("Risk critical, Acceptance test not done", False, S, needle="Acceptance test T-002 is 'ready'", **crit)
+(box / "tasks" / ".runtime").mkdir(parents=True, exist_ok=True)
+(box / "tasks" / ".runtime" / "T-002.verify.json").write_text(json.dumps([{"sha": "abc1234", "ok": True}]), encoding="utf-8")
+for args in (("set", "T-002", "--status", "in progress"), ("set", "T-002", "--status", "review"), ("set", "T-002", "--status", "done", "--commit", "abc1234")):
+    ledger(*args)
+pf("Risk critical, test file not in Do not touch", False, S, needle="'tests/test_a.py' is not in Do not touch", **crit)
+pf("Risk critical, test written on the same tool and model", False, S, needle="same tool and model", deny="- `tests/test_a.py`\n", **crit)
+task("Spec: none - acceptance test", allowed="tests/test_a.py", tid="T-002", tool="codex")
+pf("Risk critical, test from another tool", True, S, deny="- `tests/test_a.py`\n", **crit)
+
+# 7. acceptance re-checks the spec; the main folder stays on the main branch
 proposed = base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** PROPOSED\n- **Source:** B04 / UC-001")
 prd(proposed)
 git("checkout", "-q", "-b", "side")
@@ -242,6 +266,38 @@ git("checkout", "-q", "side")
 code, out = gate("stage", "1")
 case("stage 1, main folder on a side branch", False, out, code == 0, "main folder is on 'side'")
 git("checkout", "-q", "main")
+
+# 8. Tester of a risky task: the tests must fail without the change, or the Verdict is not pass
+task("Spec: FR-001, AC-001", worktree=str(wt), risk="risky", independent="tester", result=f"Outcome: completed\nChange: {sha} on t-001-test\n")
+TESTER = f"""# T-003: check
+
+Role: tester
+Tool: codex
+Verifies: T-001 @ {sha}
+
+## Acceptance criteria
+
+- [ ] AC-001: it works
+
+## Checks
+
+- `python -c "print(1)"` - AC-001
+
+## Result
+Outcome: completed
+Verdict: pass
+Criteria:
+- AC-001 - pass - evidence: output
+"""
+(box / "tasks" / "T-003-check.md").write_text(TESTER, encoding="utf-8")
+gate("task", "T-003", "--out", str(box / "t.json"))
+baseline = json.loads((box / "t.json").read_text(encoding="utf-8"))["baseline"]
+(box / "tasks" / ".runtime" / "T-003.json").write_text(json.dumps({"taskId": "T-003", "attempts": [{"n": 1, "status": "exited", "baseline": baseline}]}), encoding="utf-8")
+for name, line, ok, needle in (("no line", "", False, "Tests without the change"), ("tests pass without it", "Tests without the change: pass\n", False, "cannot be pass"),
+                               ("tests fail without it", "Tests without the change: fail\n", True, None)):
+    (box / "tasks" / "T-003-check.md").write_text(TESTER + line, encoding="utf-8")
+    code, out = gate("verify", "T-003")
+    case(f"tester verify of a risky task, {name}", ok, out, code == 0, needle)
 git("worktree", "remove", "--force", str(wt))
 
 for p in (wt, box):  # git objects are read-only on Windows: make them writable, then delete (onexc: Python 3.12+)

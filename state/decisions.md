@@ -164,6 +164,12 @@ Decision: an item is never implementable above the Vision / Brief front matter s
 
 Why: an FPF re-check of 2.4.0 (B.1 weakest link, A.2.9 speech act, A.10 evidence carrier, B.3.4 freshness) found rules that existed only as prose; a sandbox showed `APPROVED` without any journal row passing, an FR implementable under a `DRAFT` Brief, `main_branch()` returning the checked-out branch, and a mistyped `Must` read as "not Must". The code compares only IDs, Latin statuses, and the `[x]` mark. Rejected: reading what the human answered (Russian free text; it stays with the gate check and the human); a code check that the Orchestrator writes no product code (where product code starts is project-specific; accepted risk); failing verify when the Checks run tests the developer changed (the developer writes the test first by role, so it would fire on nearly every task; the Tester covers risky changes).
 
+### One risk scale decides how a task is checked
+
+Decision: a developer task names `Risk: low | risky | critical` by what its failure costs; the protocol (Task lifecycle, Flow 1) holds the only definition. `risky` and `critical` get a Tester who proves the tests fail without the change; `critical` (money, access, data, irreversible) also gets its acceptance test from a separate developer task on another tool or model, with the test files in `Do not touch`. Preflight and verify check the fields; the Orchestrator chooses the level, the human sees it in the plan.
+
+Why: FPF defines no criticality levels; it asks for a declared characteristic with a scale (C.16; role characteristics such as `SafetyCriticality ∈ {SC0..SC3}` are only an example) and stronger evidence for higher levels (B.3.3: safety-critical needs validation as well). Industry standards grade by the cost of failure (IEC 61508 SIL, ISO 26262 ASIL, DO-178C DAL, IEC 62304 classes). AgentFlow had three overlapping lists (protocol, Orchestrator role, Tool routing). The human chose a Tester check for risky tasks and a separate acceptance test only for money, access, and data. Rejected: classifying risk from keywords in code (word forms; the judgement stays with the Orchestrator and the human); a separate acceptance test for every risky task (one more task per feature).
+
 ### Template working plans are deleted when their release is committed
 
 Decision: one open plan file at a time (`state/plan-3.0.0.md`); a finished release's plan is removed after its commit, its result already in `CHANGELOG.md` and this file; the old plan stays in git history.

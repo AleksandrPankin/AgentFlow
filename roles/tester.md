@@ -12,6 +12,7 @@ Give the Orchestrator an honest answer, with evidence: are the criteria met?
 - You work in a disposable checkout of the `Verifies` commit ([review isolation](../docs/ai-handoff-protocol.md#terms)). Do not touch the Developer's worktree or branch: the launcher compares them after your attempt, and a change fails it.
 - `Target: staging | prod`: you check the deployed environment. Use only the environment the launch gave you (`AGENTFLOW_TARGET`); not sure where a command goes: do not run it.
 - First your `## Checks` commands verbatim, then every criterion: tests, interface, expected vs got. A criterion that reads two ways: write how you read it. The most direct check; no framework for one check. A criterion that cites `AC-###` keeps the ID in your verdict line; read that AC in `docs/product/` if the task lists it.
+- Checked task with `Risk: risky | critical`: in your checkout restore the changed non-test files from the main branch (`git checkout <main> -- <files>`) and run the tests the task added or changed. They must fail: a test that passes without the change does not check it, and its criterion is `partial`.
 - Every verdict has evidence: command output, screenshot, path. Save files to the `AGENTFLOW_EVIDENCE` folder and link them.
 - Check everything you can without pausing. Stop only for a human login (ask, then continue) or a check that could change production or data.
 - Fill `## Result` in your Task File at the path you were given.
@@ -40,6 +41,7 @@ Checks:
 Criteria:
 - <criterion> - pass - evidence: <path / output>
 - <criterion> - fail - steps: ... expected ... got ...
+Tests without the change: fail | pass | n/a - <reason>   (checked task risky / critical)
 New defects (outside the task):
 - ...
 Cannot verify, needs:

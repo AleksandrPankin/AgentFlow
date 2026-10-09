@@ -34,6 +34,7 @@ RUNTIME = TASKS / ".runtime"
 PRODUCT = ROOT / "docs" / "product"
 SHA = r"[0-9a-fA-F]{7,40}"
 VERDICTS = ["pass", "partial", "unverified", "fail"]  # worst last
+RISKS = ("low", "risky", "critical")  # what a failure costs (protocol: Task lifecycle, Flow 1)
 SPEC_STATUSES = ["APPROVED", "PROPOSED", "DRAFT", "STALE", "SUPERSEDED"]  # best first
 IMPLEMENTABLE = ("APPROVED", "PROPOSED")
 
@@ -127,7 +128,8 @@ def parse(tid):
          "checks": commands(section(text, "Checks")), "acceptance": bullets(section(text, "Acceptance criteria")),
          "independent": field(text, "Independent check"), "target": "local", "env": {}, "setup": [],
          "headerHash": sha256(header(text)), "result": section(text, "Result"),
-         "modelSpec": field(text, "Model"), "effortSpec": field(text, "Effort"), "spec": field(text, "Spec")}
+         "modelSpec": field(text, "Model"), "effortSpec": field(text, "Effort"), "spec": field(text, "Spec"),
+         "tool": field(text, "Tool"), "risk": field(text, "Risk"), "acceptanceTest": field(text, "Acceptance test")}
     t["prompt"] = (f"Your role: roles/{t['role']}.md. Your task: {f}. "
                    "Follow docs/ai-handoff-protocol.md, section 'Starting a role session'.")
     setup = section(text, "Setup") + "\n" + section(text, "Port")
@@ -155,7 +157,7 @@ def parse(tid):
         cf = task_file(m.group(1))
         ct = cf.read_text(encoding="utf-8-sig")
         t["checked"] = {"id": m.group(1), "file": str(cf), "branch": field(ct, "Branch"),
-                        "worktree": field(ct, "Worktree"), "result": section(ct, "Result")}
+                        "worktree": field(ct, "Worktree"), "result": section(ct, "Result"), "risk": field(ct, "Risk")}
         if not t["checked"]["worktree"]:
             raise TaskError(f"checked task {cf.name} has no Worktree")
         t["workdir"] = f"{t['checked']['worktree']}.{tid.lower()}"  # disposable checkout of the checked commit
@@ -385,6 +387,25 @@ def spec_lint():
     return not bad
 
 
+def acceptance_test_problems(t, status, tool):
+    """Risk critical: the acceptance test comes from a done developer task on another tool or model, and this task
+    cannot change it (its files are in Do not touch; verify refuses a diff outside Allowed files)."""
+    if not re.fullmatch(r"T-\d+", t["acceptanceTest"] or ""):
+        return ['Risk: critical needs "Acceptance test: T-xxx" (the done developer task that wrote the test)']
+    aid = t["acceptanceTest"]
+    if status.get(aid) != "done":
+        return [f"Acceptance test {aid} is '{status.get(aid, '')}' in the ledger, needs 'done'"]
+    try:
+        a = parse(aid)
+    except TaskError as e:
+        return [f"Acceptance test {aid}: {e}"]
+    bad = [] if a["role"] == "developer" else [f"Acceptance test {aid} is a {a['role']} task, needs developer"]
+    bad += [f"Acceptance test {aid} file '{p}' is not in Do not touch" for p in a["allowed"] if not any(overlap(p, d) for d in t["denied"])]
+    if (a["tool"], a["modelSpec"] or "default") == (tool or t["tool"], t["modelSpec"] or "default"):
+        bad.append(f"Acceptance test {aid} ran on the same tool and model ({a['tool']}, {a['modelSpec'] or 'default'}): use another")
+    return bad
+
+
 # --- preflight: all problems at once, before anything is created (protocol: Launching workers, rule 9)
 def preflight(tid, manual, live, tool=None):
     bad = []
@@ -411,6 +432,12 @@ def preflight(tid, manual, live, tool=None):
             bad.append(f"Branch '{t['branch']}' is not named after the task ({tid.lower()}-slug)")
         if not re.match(r"^(tester|none\b.*\S.*)$", t["independent"] or ""):
             bad.append('developer task needs "Independent check: tester | none - <reason>"')
+        if t["risk"] not in RISKS:
+            bad.append(f"developer task needs \"Risk: {' | '.join(RISKS)}\" (got '{t['risk'] or ''}')")
+        elif t["risk"] != "low" and not (t["independent"] or "").startswith("tester"):
+            bad.append(f"Risk: {t['risk']} needs Independent check: tester")
+        if t["risk"] == "critical":
+            bad += acceptance_test_problems(t, status, tool)
     for s, own in (("Acceptance criteria", t["acceptance"]), ("Checks", bullets(section(Path(t["file"]).read_text(encoding="utf-8-sig"), "Checks")))):
         if not [b for b in own if b not in bullets(section(tpl, s))]:
             bad.append(f"## {s} is empty or still the template text")
@@ -635,6 +662,12 @@ def verify(tid):
     elif t["role"] == "tester":
         vb, v = verdict_problems(t["result"])
         bad += vb
+        if t["target"] == "local" and t["checked"]["risk"] in ("risky", "critical"):  # tests that pass without the change check nothing
+            w = (result_field(t, "Tests without the change") or "").lower()
+            if not re.match(r"^(fail|pass|n/a[ \t]*-[ \t]*\S)", w):
+                bad.append('checked task is risky / critical: Result needs "Tests without the change: fail | pass | n/a - <reason>"')
+            elif w.startswith("pass") and v == "pass":
+                bad.append("tests pass without the change, so they do not check it: the Verdict cannot be pass")
     elif t["role"] == "deployer":
         if result_field(t, "Deployment") != "deployed":
             bad.append(f"Result Deployment is '{result_field(t, 'Deployment')}', needs 'deployed'")

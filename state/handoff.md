@@ -12,11 +12,11 @@ Keep AgentFlow small while its rules are enforced by the tools, not only written
 
 - 2.0.0 (P0-P4) and 2.1.0 (dashboard) are on `main`: `git branch --merged main`, `CHANGELOG.md`.
 - 2.2.0 and 2.3.0 on `release/2.3.0`: their sandbox matrices passed on 2026-10-06 (`6f57e65`, `3e83936`), but the matrices were not kept and `gate.py` changed since, so this cannot be re-checked now. Real CLIs not yet run.
-- 2.4.0 with the FPF re-check fixes: `python dev/test_gate_spec.py` passes 46 cases (spec lint, preflight, and verify, ledger, stage on a real worktree) at `02bd5d5`; relative links and anchors of all tracked Markdown resolve (38 files, scratch check). No end-to-end run with real tools.
+- 2.4.0 with the FPF re-check fixes and the risk scale: `python dev/test_gate_spec.py` passes 58 cases (spec lint, preflight, risk, and verify, ledger, stage, tester verify on a real worktree); relative links and anchors of all tracked Markdown resolve (38 files, scratch check). No end-to-end run with real tools.
 
 ## Files in flight
 
-None; working tree clean after this memory update is committed. Changed this session: `tools/gate.py` (Vision / Brief ceiling, `APPROVED (OWN-###)`, priorities, Spec re-check in verify and stage, explicit main branch), `dev/test_gate_spec.py`, protocol, `templates/product/03`, `05`, `06`, `07`, `templates/owner-tasks.md`, `.gitignore` (verify records committed), GUIDE, CHANGELOG 2.4.0 (bullets and migration), decisions (date order), known-issues. Merged branches `fix/launcher-defects` and `refactor/fpf-audit` deleted; `backup/old-history` kept (not merged).
+None; working tree clean after this memory update is committed. Changed this session: `tools/gate.py` (Vision / Brief ceiling, `APPROVED (OWN-###)`, priorities, Spec re-check in verify and stage, explicit main branch, `Risk:` with Tester and acceptance-test checks), roles, Task File template, `dev/test_gate_spec.py`, protocol, `templates/product/03`, `05`, `06`, `07`, `templates/owner-tasks.md`, `.gitignore` (verify records committed), GUIDE, CHANGELOG 2.4.0 (bullets and migration), decisions (date order), known-issues. Merged branches `fix/launcher-defects` and `refactor/fpf-audit` deleted; `backup/old-history` kept (not merged).
 
 ## Assumptions
 
@@ -25,7 +25,7 @@ None; working tree clean after this memory update is committed. Changed this ses
 ## Open problems
 
 - See `state/known-issues.md` and `state/plan-3.0.0.md`, sections 2-3.
-- The human copies the 2.4.0 layer into a live project by hand and brings feedback; live projects run older AgentFlow versions (check `AgentFlow version` before judging feedback). The 2.4.0 migration now also asks for `APPROVED (OWN-###)`, FR / NFR priorities, the Vision / Brief status, and the `.gitignore` change.
+- The human copies the 2.4.0 layer into a live project by hand and brings feedback; live projects run older AgentFlow versions (check `AgentFlow version` before judging feedback). The 2.4.0 migration now also asks for `APPROVED (OWN-###)`, FR / NFR priorities, the Vision / Brief status, the `.gitignore` change, and `Risk:` in open developer Task Files.
 - The platform project (04) still names deploy sessions per project in its own contracts; it reads the product projects' request files already.
 - Reminder for the human: ask the colleague where his `launch.ps1` and `tests/` come from (blocks 3.0.0 only).
 

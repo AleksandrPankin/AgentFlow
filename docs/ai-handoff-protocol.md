@@ -157,7 +157,12 @@ Each family has one owner, and within a family a label means one thing only; a w
 
 ### Flow
 
-1. The Orchestrator writes the Task File (with Product definition: `Spec:`) and adds the ledger row (`ready`). `Independent check:` is `tester` for a user-visible or risky change (data, auth, deploy scripts, shared config), otherwise `none - <reason>`; the human sees it in the plan.
+1. The Orchestrator writes the Task File (with Product definition: `Spec:`) and adds the ledger row (`ready`). A developer task gets `Risk:` by what its failure would cost; this is the one risk scale (unsure: the higher level):
+   - `critical`: a failure loses or exposes money, access, or data (payments, auth and permissions, secrets, personal data, deleting or migrating data, writes to external systems), or cannot be undone. A separate developer task on another tool or model writes the acceptance test first; this task names it in `Acceptance test:` and its files in `Do not touch`.
+   - `risky`: a failure is visible to users or silent (interface, shared config, deploy scripts, concurrency, probabilistic output such as routing or extraction).
+   - `low`: anything else; a failure shows at once and is easy to undo.
+
+   `risky` and `critical` get `Independent check: tester`, and the Tester proves that the task's tests fail without the change; `low` gets `none - <reason>` or a Tester. The human sees `Risk` in the plan. Whether to wait for the human is a different question: the blocking list ([Owner tasks](#section-owner-tasks)).
 2. Launch ([Launching workers](#section-launching-workers)); ledger `in progress`.
 3. The worker fills `## Result`.
 4. The Orchestrator sets `review` and decides:
@@ -179,7 +184,7 @@ Acceptance is the event `review` -> `done`; `tools/ledger.py` allows it only aft
 
 - the last attempt `exited`, the Task File above `## Result` unchanged, `Outcome: completed`, the main folder on the main branch;
 - Developer: branch, clean worktree, and `Change` at one SHA; `git diff <main>...<SHA>` inside `Allowed files`; every `## Checks` command passing there with `AGENTFLOW_TARGET=local`; with `Independent check: tester`, a `done` Tester task with `Verdict: pass` for this SHA; with Product definition, its `Spec:` items still implementable (a spec changed during the attempt fails it);
-- Tester: `Verdict` equal to its worst criterion;
+- Tester: `Verdict` equal to its worst criterion; for a `risky` / `critical` checked task `Tests without the change: fail | pass | n/a - <reason>`, and `pass` there is never `Verdict: pass`;
 - Deployer: `Deployment: deployed`, `Smoke` pass, and for production `Approval: source=human target=prod sha=<SHA> at=<time>`.
 
 Beyond verify the Orchestrator does not investigate: a new measurement is a Tester task. When verify notes that the Checks use files the task changed, read that diff first. A stage rule from the plan ("prototype first") is checked here too.
@@ -229,7 +234,7 @@ Who: the Orchestrator (or the human). Per tool: Tool Routing.
    - a Deployer or a live Tester on production without `-Manual`;
    - with Product definition: a developer task without `Spec:`; a `Spec:` item that does not exist or is not `PROPOSED` / `APPROVED`; any `Allowed files` under `docs/product/`;
    - overlap with an open task (`in progress`, `review`, or a running attempt) in `Allowed files` or `Rebuild together`, or a `Port` of a running attempt; an open task whose Task File cannot be read;
-   - the task itself: `Allowed files` inside `Do not touch`; empty or template `Acceptance criteria` or `## Checks`; a developer task without `Independent check` or with a `Branch` not starting with `t-NNN-`; a missing `## Setup` source; `env: AGENTFLOW_*`;
+   - the task itself: `Allowed files` inside `Do not touch`; empty or template `Acceptance criteria` or `## Checks`; a developer task without `Independent check` or with a `Branch` not starting with `t-NNN-`; a developer task without `Risk: low | risky | critical`, `risky` / `critical` without `Independent check: tester`, `critical` without a done `Acceptance test` task on another tool or model whose files are in `Do not touch`; a missing `## Setup` source; `env: AGENTFLOW_*`;
    - project patterns from `## Preflight` in Project rules, applied to the `## Checks` commands and `## Setup` lines of local tasks: `- deny: <regex>` (no command may match: production hosts, destructive commands) and `- require: <regex> => <regex>` (for example `playwright test => --project=local`).
 
    A refused launch is fixed in the Task File, not worked around.

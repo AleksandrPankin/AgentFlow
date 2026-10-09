@@ -12,7 +12,9 @@ Spec: <FR-###, AC-###, ADR-###> | none - <reason> | spike - <Q-ID>   <!-- with d
 Depends on: T-xxx | none
 Branch: t-NNN-slug                            <!-- developer -->
 Worktree: <worktrees>\<repo>-t-NNN-slug       <!-- developer; <worktrees> from Project rules -->
-Independent check: tester | none - <reason>   <!-- developer -->
+Risk: low | risky | critical                  <!-- developer; what a failure costs: ../docs/ai-handoff-protocol.md, Task lifecycle, Flow 1 -->
+Independent check: tester | none - <reason>   <!-- developer; risky, critical: tester -->
+Acceptance test: T-xxx                        <!-- developer, Risk critical: the done task (another tool or model) that wrote the test; its files go to Do not touch -->
 Resume: none                                  <!-- after a failed attempt: <commit SHA> | start fresh -->
 Verifies: T-xxx @ <SHA>                       <!-- tester: checked task and commit -->
 Deploys: <SHA>                                <!-- deployer -->
