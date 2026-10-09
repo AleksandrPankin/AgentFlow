@@ -9,3 +9,6 @@ Errors, dead ends, and constraints of the AgentFlow template. Each entry: date, 
 - 2026-10-03 - Antigravity IDE cannot be automated: its attempts are `-Manual` and end with `-MarkFinished`.
 - 2026-10-06 - `-Wait` wakes the Orchestrator only while its session is open; a closed session sees finished tasks at the next start. 2.2.0 is verified in a sandbox with placeholder processes, not yet with real codex / claude / agy windows (Stage 3 pilot). Reopen after the pilot.
 - 2026-10-06 - Shell heredocs on Windows mangle backslash escapes (`\t`, `\b`, `\a`) and Cyrillic when used to edit files: edit with the editor tool or a script file instead.
+- 2026-10-09 - Spec items are found only in one format: a heading `### <ID> — <title>` and `- **Статус:** <STATUS>` (AC: `- **Source:** FR-###`). A hand-edited block in another format is invisible to `gate.py` (preflight then says "not found"); files `05`-`09` are never scanned. Reopen if live projects keep breaking the format.
+- 2026-10-09 - Cyrillic in `gate.py` output is mangled in a Windows console without UTF-8; machine messages stay English, Cyrillic only in file content.
+- 2026-10-09 - The 2.2.0 and 2.3.0 sandbox matrices (launcher `-Wait`, auto-close, trust, models) were never committed; only `dev/test_gate_spec.py` (2.4.0) can be re-run. Reopen with the `tests/` question of 3.0.0.

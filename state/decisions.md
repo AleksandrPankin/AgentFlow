@@ -149,3 +149,15 @@ Why: enforcement before prose (2026-10-03). Rejected: deferring the check until 
 Decision: the Deployer is an agent session of the platform project named in Project rules `## Deploy`; the Orchestrator requests; staging without the human when no server changes; production keeps the human's yes in that session (supersedes only the "session the human designated" part of the 2026-10-03 decision).
 
 Why: the human's projects already deploy through one platform project with contract scripts. Considered and rejected by the human: production without a yes when a recomputed git-diff risk check is clean.
+
+### Regression checks of the template's tools are committed in `dev/`
+
+Decision: a sandbox matrix written for a release is kept as a script in `dev/` (template-only, never copied into projects), runnable without arguments; first one `dev/test_gate_spec.py`. If a `tests/` folder comes in with 3.0.0, the scripts move there.
+
+Why: the 2.2.0 and 2.3.0 matrices lived only in a session's scratch folder and were lost; a later change to `gate.py` (the 3.0.0 path split) would have nothing to re-run. Rejected: waiting for the `tests/` decision (the script would be gone by then).
+
+### Template working plans are deleted when their release is committed
+
+Decision: one open plan file at a time (`state/plan-3.0.0.md`); a finished release's plan is removed after its commit, its result already in `CHANGELOG.md` and this file; the old plan stays in git history.
+
+Why: two plans with finished sections next to open ones made it unclear what was still to do.

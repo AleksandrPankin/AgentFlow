@@ -2,7 +2,7 @@
 
 ## As of
 
-2026-10-09, `main@2749d7e` (2.1.0); `release/2.3.0` holds 2.2.0 and 2.3.0; `release/2.4.0` (from `release/2.3.0`) holds 2.4.0 (`5f74ce3`) and the plan cleanup.
+2026-10-09, `main@2749d7e` (2.1.0); `release/2.3.0` holds 2.2.0 and 2.3.0; `release/2.4.0` (from `release/2.3.0`, at `b6a8857`) holds 2.4.0 (`5f74ce3`), the plan cleanup (`5ad3392`), and `dev/test_gate_spec.py` (`b6a8857`). Nothing merged into `main` since 2.1.0.
 
 ## Goal
 
@@ -16,7 +16,7 @@ Keep AgentFlow small while its rules are enforced by the tools, not only written
 
 ## Files in flight
 
-None. `state/plan-2.2-3.0.md` and `state/plan-2.4.0.md` were folded into `state/plan-3.0.0.md` (3.0.0, open questions, later items) and removed; both stay in git at `5f74ce3`.
+None; working tree clean after this memory update is committed. Changed this session: `templates/` (new), protocol sections "Owner tasks" and "Product definition", roles, Task File template, `tools/gate.py` (`spec`, `Spec:` preflight), `dev/` (new, template-only), GUIDE, README, CHANGELOG 2.4.0, decisions. `state/plan-2.2-3.0.md` and `state/plan-2.4.0.md` were folded into `state/plan-3.0.0.md` and removed; both stay in git at `5f74ce3`.
 
 ## Assumptions
 
