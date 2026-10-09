@@ -1,0 +1,30 @@
+{
+  "about": "Task File Model: tier or explicit id -> model id per tool; Effort: -> the tool's reasoning effort. Read by .agentflow/tools/gate.py. Override a tier per machine: AGENTFLOW_MODEL_<TOOL>_<TIER>=<id>. Guidance: .agentflow/roles/tool-routing.md, Choosing the model.",
+  "verifiedAt": "2026-10-06",
+  "sources": {
+    "claude": "claude --help (2.1.291: --model alias or full name, --effort low|medium|high|xhigh|max); Anthropic model table 2026-09-25",
+    "codex": "codex exec --help (0.130.0: -m, -c model_reasoning_effort=...); ~/.codex/models_cache.json fetched from OpenAI",
+    "agy": "agy --help and agy models (1.3.0: --model, --effort)"
+  },
+  "tiers": ["small", "standard", "strong"],
+  "tools": {
+    "claude": {
+      "tiers": { "small": "claude-haiku-4-5", "standard": "claude-sonnet-5-5", "strong": "claude-opus-5-5" },
+      "models": ["claude-haiku-4-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1", "haiku", "sonnet", "opus", "fable"],
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "noEffort": ["claude-haiku-4-5", "haiku"]
+    },
+    "codex": {
+      "tiers": { "small": "gpt-6-luna", "standard": "gpt-6.1-sol", "strong": "gpt-6-astra" },
+      "models": ["gpt-6-luna", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-astra", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"],
+      "efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
+      "noEffort": []
+    },
+    "agy": {
+      "tiers": { "small": "gemini-3.8-flash-low", "standard": "gemini-3.8-flash-medium", "strong": "gemini-3.8-flash-high" },
+      "models": ["gemini-3.8-flash-low", "gemini-3.8-flash-medium", "gemini-3.8-flash-high", "gemini-3.1-pro-low", "gemini-3.1-pro-high", "claude-sonnet-4-6", "claude-opus-4-6-thinking"],
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "noEffort": []
+    }
+  }
+}

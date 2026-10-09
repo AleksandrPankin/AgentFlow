@@ -1,11 +1,12 @@
-# run-task.ps1 process state and logs; verify records (acceptance evidence) are committed
-tasks/.runtime/*
-!tasks/.runtime/*.verify.json
-
-# dashboard: built pages and local versions of its sources (the sources themselves are committed)
-dashboard/out/
-dashboard/versions/
+# agentflow:start  (AgentFlow block: an AgentFlow install or update replaces only the lines between the markers)
+# launcher process state and logs; verify records (acceptance evidence) are committed
+docs/tasks/.runtime/*
+!docs/tasks/.runtime/*.verify.json
+# dashboard: built pages and local versions of its sources
+.agentflow/dashboard/out/
+.agentflow/dashboard/versions/
 __pycache__/
+# agentflow:end
 
-# requests from other projects' agents to the template (local inbox, not part of the template)
+# template repository only, never copied into projects: requests from other projects' agents (local inbox)
 requests/

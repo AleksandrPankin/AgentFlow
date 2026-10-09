@@ -1,8 +1,8 @@
-"""Regression check of tools/gate.py, Product definition (2.4.0): `spec` lint and the preflight rules for `Spec:`.
+"""Regression check of .agentflow/tools/gate.py: `spec` lint, preflight (`Spec:`, `Risk:`), verify, ledger, stage.
 
   python dev/test_gate_spec.py [<AgentFlow root>]     default: the folder above dev/
 
-Builds a throwaway git repository in the temp folder from tools/, tasks/_template.md and templates/product/,
+Builds a throwaway git repository in the temp folder from .agentflow/tools/ and .agentflow/templates/ (3.0.0 layout),
 runs every case, prints PASS / FAIL per case, exits 1 on any failure. Template development only: never copied into projects.
 """
 import json
@@ -18,9 +18,9 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
 box = Path(tempfile.mkdtemp(prefix="af24-"))
-shutil.copytree(SRC / "tools", box / "tools", ignore=shutil.ignore_patterns("__pycache__"))
-(box / "tasks").mkdir()
-shutil.copy(SRC / "tasks" / "_template.md", box / "tasks" / "_template.md")
+for part in ("tools", "templates"):
+    shutil.copytree(SRC / ".agentflow" / part, box / ".agentflow" / part, ignore=shutil.ignore_patterns("__pycache__"))
+(box / "docs" / "tasks").mkdir(parents=True)
 shutil.copy(SRC / "AGENTS.md", box / "AGENTS.md")
 subprocess.run(["git", "init", "-q", "-b", "main", str(box)], check=True)
 subprocess.run(["git", "-C", str(box), "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init"], check=True)
@@ -71,7 +71,7 @@ fails = 0
 def task(spec, allowed="src/a.py", worktree="D:\\tmp\\box-t-001-test", result="", tid="T-001", tool="claude", risk="low",
          independent="none - sandbox", head="", deny=""):
     text = TASK.format(spec=spec, allowed=allowed, worktree=worktree, tool=tool, risk=risk, independent=independent, head=head, deny=deny)
-    (box / "tasks" / f"{tid}-test.md").write_text(text + result, encoding="utf-8")
+    (box / "docs" / "tasks" / f"{tid}-test.md").write_text(text + result, encoding="utf-8")
 
 
 def git(*args, cwd=None):
@@ -80,11 +80,11 @@ def git(*args, cwd=None):
 
 
 def ledger(*args):
-    subprocess.run([sys.executable, str(box / "tools" / "ledger.py"), *args], capture_output=True, check=True)
+    subprocess.run([sys.executable, str(box / ".agentflow" / "tools" / "ledger.py"), *args], capture_output=True, check=True)
 
 
 def gate(*args):
-    r = subprocess.run([sys.executable, str(box / "tools" / "gate.py"), *args], capture_output=True, text=True, encoding="utf-8")
+    r = subprocess.run([sys.executable, str(box / ".agentflow" / "tools" / "gate.py"), *args], capture_output=True, text=True, encoding="utf-8")
     return r.returncode, r.stdout + r.stderr
 
 
@@ -117,8 +117,8 @@ def front(name, status):  # front matter status of Vision or Brief
 
 
 def owner(lines):  # state/owner-tasks.md holding these task lines
-    (box / "state").mkdir(exist_ok=True)
-    (box / "state" / "owner-tasks.md").write_text("# Задачи на владельца\n\n" + lines, encoding="utf-8")
+    (box / "docs" / "state").mkdir(exist_ok=True)
+    (box / "docs" / "state" / "owner-tasks.md").write_text("# Задачи на владельца\n\n" + lines, encoding="utf-8")
 
 
 def lint(name, ok_expected, needle=None):
@@ -133,7 +133,7 @@ code, out = gate("spec")
 case("spec without docs/product", True, out, code == 0, "not active")
 
 # 2. product layer from the templates
-shutil.copytree(SRC / "templates" / "product", box / "docs" / "product")
+shutil.copytree(SRC / ".agentflow" / "templates" / "product", box / "docs" / "product")
 code, out = gate("spec")
 case("spec on fresh templates", True, out, code == 0, "DRAFT 2")
 pf("developer without Spec", False, "", needle="needs \"Spec:")
@@ -148,7 +148,7 @@ pf("Allowed files in docs/product", False, "Spec: none - x", allowed="docs/produ
 pf("Allowed files docs/** glob", False, "Spec: none - x", allowed="docs/**", needle="is in docs/product/")
 
 # 3. statuses; Vision and Brief are a ceiling for every item (weakest link)
-base = (SRC / "templates" / "product" / "03_PRD.md").read_text(encoding="utf-8")
+base = (SRC / ".agentflow" / "templates" / "product" / "03_PRD.md").read_text(encoding="utf-8")
 prd(base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** PROPOSED\n- **Source:** B04 / UC-001"))
 pf("Spec FR-001 PROPOSED, Vision DRAFT", False, "Spec: FR-001", needle="01_VISION.md")
 lint("spec: PROPOSED FR under a DRAFT Vision", False, "never ahead of Vision and Brief")
@@ -219,8 +219,8 @@ task("Spec: none - acceptance test", allowed="tests/test_a.py", tid="T-002")
 ledger("add", "T-002", "--role", "developer")
 crit = dict(risk="critical", independent="tester", head="Acceptance test: T-002")
 pf("Risk critical, Acceptance test not done", False, S, needle="Acceptance test T-002 is 'ready'", **crit)
-(box / "tasks" / ".runtime").mkdir(parents=True, exist_ok=True)
-(box / "tasks" / ".runtime" / "T-002.verify.json").write_text(json.dumps([{"sha": "abc1234", "ok": True}]), encoding="utf-8")
+(box / "docs" / "tasks" / ".runtime").mkdir(parents=True, exist_ok=True)
+(box / "docs" / "tasks" / ".runtime" / "T-002.verify.json").write_text(json.dumps([{"sha": "abc1234", "ok": True}]), encoding="utf-8")
 for args in (("set", "T-002", "--status", "in progress"), ("set", "T-002", "--status", "review"), ("set", "T-002", "--status", "done", "--commit", "abc1234")):
     ledger(*args)
 pf("Risk critical, test file not in Do not touch", False, S, needle="'tests/test_a.py' is not in Do not touch", **crit)
@@ -242,10 +242,10 @@ git("add", "src/a.py", cwd=wt)
 git("commit", "-q", "-m", "[T-001] feat: a", cwd=wt)
 sha = git("rev-parse", "HEAD", cwd=wt)
 task("Spec: FR-001, AC-001", worktree=str(wt), result=f"Outcome: completed\nChange: {sha} on t-001-test\n")
-(box / "tasks" / ".runtime").mkdir(parents=True, exist_ok=True)
+(box / "docs" / "tasks" / ".runtime").mkdir(parents=True, exist_ok=True)
 gate("task", "T-001", "--out", str(box / "t.json"))
 baseline = json.loads((box / "t.json").read_text(encoding="utf-8"))["baseline"]
-(box / "tasks" / ".runtime" / "T-001.json").write_text(json.dumps({"taskId": "T-001", "attempts": [{"n": 1, "status": "exited", "baseline": baseline}]}), encoding="utf-8")
+(box / "docs" / "tasks" / ".runtime" / "T-001.json").write_text(json.dumps({"taskId": "T-001", "attempts": [{"n": 1, "status": "exited", "baseline": baseline}]}), encoding="utf-8")
 code, out = gate("verify", "T-001")
 case("verify, FR-001 PROPOSED", True, out, code == 0)
 prd(proposed.replace("PROPOSED", "STALE", 1))
@@ -289,13 +289,13 @@ Verdict: pass
 Criteria:
 - AC-001 - pass - evidence: output
 """
-(box / "tasks" / "T-003-check.md").write_text(TESTER, encoding="utf-8")
+(box / "docs" / "tasks" / "T-003-check.md").write_text(TESTER, encoding="utf-8")
 gate("task", "T-003", "--out", str(box / "t.json"))
 baseline = json.loads((box / "t.json").read_text(encoding="utf-8"))["baseline"]
-(box / "tasks" / ".runtime" / "T-003.json").write_text(json.dumps({"taskId": "T-003", "attempts": [{"n": 1, "status": "exited", "baseline": baseline}]}), encoding="utf-8")
+(box / "docs" / "tasks" / ".runtime" / "T-003.json").write_text(json.dumps({"taskId": "T-003", "attempts": [{"n": 1, "status": "exited", "baseline": baseline}]}), encoding="utf-8")
 for name, line, ok, needle in (("no line", "", False, "Tests without the change"), ("tests pass without it", "Tests without the change: pass\n", False, "cannot be pass"),
                                ("tests fail without it", "Tests without the change: fail\n", True, None)):
-    (box / "tasks" / "T-003-check.md").write_text(TESTER + line, encoding="utf-8")
+    (box / "docs" / "tasks" / "T-003-check.md").write_text(TESTER + line, encoding="utf-8")
     code, out = gate("verify", "T-003")
     case(f"tester verify of a risky task, {name}", ok, out, code == 0, needle)
 git("worktree", "remove", "--force", str(wt))

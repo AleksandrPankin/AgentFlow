@@ -1,3 +1,3 @@
 # /update-memory
 
-Run `docs/ai-handoff-protocol.md`, section "Updating memory".
+Run `.agentflow/protocol.md`, section "Updating memory".
