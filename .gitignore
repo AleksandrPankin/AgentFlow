@@ -1,5 +1,6 @@
-# run-task.ps1 process state and logs
-tasks/.runtime/
+# run-task.ps1 process state and logs; verify records (acceptance evidence) are committed
+tasks/.runtime/*
+!tasks/.runtime/*.verify.json
 
 # dashboard: built pages and local versions of its sources (the sources themselves are committed)
 dashboard/out/
