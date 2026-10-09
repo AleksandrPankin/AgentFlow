@@ -3,9 +3,10 @@
   python dev/test_gate_spec.py [<AgentFlow root>]     default: the folder above dev/
 
 Builds a throwaway git repository in the temp folder from tools/, tasks/_template.md and templates/product/,
-runs 28 cases, prints PASS / FAIL per case, exits 1 on any failure. Template development only: never copied into projects.
+runs every case, prints PASS / FAIL per case, exits 1 on any failure. Template development only: never copied into projects.
 """
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -95,6 +96,21 @@ def prd(text):
     (box / "docs" / "product" / "03_PRD.md").write_text(text, encoding="utf-8")
 
 
+def front(name, status):  # front matter status of Vision or Brief
+    f = box / "docs" / "product" / name
+    f.write_text(re.sub(r"(?m)^status:.*$", f"status: {status}", f.read_text(encoding="utf-8"), count=1), encoding="utf-8")
+
+
+def owner(lines):  # state/owner-tasks.md holding these task lines
+    (box / "state").mkdir(exist_ok=True)
+    (box / "state" / "owner-tasks.md").write_text("# Задачи на владельца\n\n" + lines, encoding="utf-8")
+
+
+def lint(name, ok_expected, needle=None):
+    code, out = gate("spec")
+    case(name, ok_expected, out, code == 0, needle)
+
+
 # 1. no product layer
 pf("no docs/product, no Spec line", True, "")
 pf("no docs/product, template Spec line", True, "Spec: <FR-###, AC-###, ADR-###> | none - <reason> | spike - <Q-ID>")
@@ -116,14 +132,30 @@ pf("Spec unknown FR-099", False, "Spec: FR-099", needle="FR-099 not found")
 pf("Allowed files in docs/product", False, "Spec: none - x", allowed="docs/product/03_PRD.md", needle="is in docs/product/")
 pf("Allowed files docs/** glob", False, "Spec: none - x", allowed="docs/**", needle="is in docs/product/")
 
-# 3. statuses
+# 3. statuses; Vision and Brief are a ceiling for every item (weakest link)
 base = (SRC / "templates" / "product" / "03_PRD.md").read_text(encoding="utf-8")
 prd(base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** PROPOSED\n- **Source:** B04 / UC-001"))
+pf("Spec FR-001 PROPOSED, Vision DRAFT", False, "Spec: FR-001", needle="01_VISION.md")
+lint("spec: PROPOSED FR under a DRAFT Vision", False, "never ahead of Vision and Brief")
+front("01_VISION.md", "PROPOSED")
+pf("Spec AC-001, Brief DRAFT", False, "Spec: AC-001", needle="02_BRIEF.md")
+front("02_BRIEF.md", "PROPOSED")
 pf("Spec FR-001 PROPOSED + AC-001", True, "Spec: FR-001, AC-001")
 pf("Spec with B04, AR05, UC-001", True, "Spec: FR-001, B04, AR05, UC-001")
 pf("Spec with unknown B99", False, "Spec: FR-001, B99", needle="B99 not found")
 prd(base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** APPROVED\n- **Source:** B04 / UC-001"))
 pf("Spec FR-001 APPROVED", True, "Spec: FR-001, AC-001")
+lint("spec: APPROVED without an owner task", False, "needs the owner task")
+prd(base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** APPROVED (OWN-001)\n- **Source:** B04 / UC-001"))
+owner("- [ ] **OWN-001 · Проверить срез.**\n")
+lint("spec: APPROVED by an open owner task", False, "OWN-001, which is not done")
+owner("- [x] **OWN-001 · Проверить срез.** 2026-10-09: ок\n")
+lint("spec: APPROVED by a done owner task", True)
+front("02_BRIEF.md", "APPROVED")
+lint("spec: Brief APPROVED without an owner task", False, "02_BRIEF.md (docs/product/02_BRIEF.md")
+front("02_BRIEF.md", "APPROVED (OWN-001)")
+lint("spec: Brief APPROVED by a done owner task", True)
+front("02_BRIEF.md", "PROPOSED")
 prd(base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** STALE\n- **Source:** B04 / UC-001"))
 pf("Spec FR-001 STALE", False, "Spec: FR-001", needle="FR-001 is STALE")
 pf("Spec AC-001 of STALE FR", False, "Spec: AC-001", needle="AC-001 is STALE")
@@ -154,6 +186,12 @@ case("spec: AC without existing FR", False, out, code == 0, "AC-002")
 prd(base.replace("- **Статус:** DRAFT\n- **Source:** B04 / UC-001", "- **Статус:** Approved-ish\n- **Source:** B04 / UC-001"))
 code, out = gate("spec")
 case("spec: invalid status word", False, out, code == 0, "FR-001")
+for name, value, needle in (("Must with a comment", "Must — ядро MVP", "Must without an AC"), ("must in lower case", "must", "Must without an AC"),
+                            ("unknown word", "Обязательно", "priority 'обязательно'")):
+    prd(base + f"\n### FR-005 — x\n\n- **Статус:** PROPOSED\n- **Source:** B04\n- **Приоритет:** {value}\n")
+    lint(f"spec: priority {name}", False, needle)
+prd(base + "\n### FR-006 — no priority\n\n- **Статус:** PROPOSED\n- **Source:** B04\n")
+lint("spec: FR without a priority", False, "FR-006 (")
 
 shutil.rmtree(box, ignore_errors=True)
 print(f"\n{'ALL PASS' if not fails else f'{fails} FAILED'}")

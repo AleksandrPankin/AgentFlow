@@ -3,7 +3,8 @@
 
   python tools/gate.py verify T-007      acceptance evidence for one task; appends to tasks/.runtime/T-007.verify.json
   python tools/gate.py stage 2           every Stage 2 task done and its Checks pass on the main branch
-  python tools/gate.py spec              Product definition items in docs/product/: IDs, statuses, Must FR without AC
+  python tools/gate.py spec              Product definition items in docs/product/: IDs, statuses, priorities,
+                                         Must FR without AC, APPROVED with a done owner task, Vision / Brief ceiling
 
 Used by tools/run-task.ps1 (pure logic here, side effects there):
   python tools/gate.py task T-007 --out f.json
@@ -234,9 +235,12 @@ def last_attempt(tid):
 ITEM_HEAD = re.compile(r"^#{1,4}[ \t]+([A-Z]{1,4}-\d+)\b")  # "### FR-012 — title"
 ITEM_STATUS = re.compile(r"^[ \t]*[-*][ \t]+\*\*(?:Статус|Status)[ \t]*:?[ \t]*\*\*[ \t]*:?[ \t]*`?([^\s`*.,;]+)")
 ITEM_SOURCE = re.compile(r"^[ \t]*[-*][ \t]+\*\*Source[ \t]*:?[ \t]*\*\*[ \t]*:?(.*)$")
-ITEM_MUST = re.compile(r"^[ \t]*[-*][ \t]+\*\*(?:Приоритет|Priority)[ \t]*:?[ \t]*\*\*[ \t]*:?[ \t]*`?Must`?[ \t]*$")
+ITEM_PRIORITY = re.compile(r"^[ \t]*[-*][ \t]+\*\*(?:Приоритет|Priority)[ \t]*:?[ \t]*\*\*[ \t]*:?[ \t]*`?([^\s`*.,;:—–-]+)")
+PRIORITIES = ("must", "should", "could", "won't", "won’t", "later")  # an unknown word is an error, never a silent non-Must
 STATUS_KINDS = ("FR", "NFR", "ADR")  # carry their own Статус; an AC takes the worst of its FR / NFR sources
+DOCS = ("01_VISION.md", "02_BRIEF.md")  # one status in front matter: a ceiling for every item (weakest link)
 SPEC_REF = r"\b(?:[A-Z]{1,4}-\d+|[A-Z]{1,2}\d{2})\b"  # FR-012, ADR-006, B04, AR05
+OWN = r"\bOWN-\d+\b"  # owner task: "APPROVED (OWN-012)" names the human's answer
 
 
 def spec_files():
@@ -244,7 +248,7 @@ def spec_files():
 
 
 def spec_items():
-    """{id: {file, line, status, sources, must}} of docs/product/, and problems for IDs defined twice."""
+    """{id: {file, line, status, own, sources, priority}} of docs/product/, and problems for IDs defined twice."""
     items, dups = {}, []
     for f in spec_files():
         rel, cur = f.relative_to(ROOT).as_posix(), None
@@ -256,25 +260,63 @@ def spec_items():
                         it = items[m.group(1)]
                         dups.append(f"{m.group(1)} defined twice: {it['file']}:{it['line']} and {rel}:{n}")
                     else:
-                        cur = items[m.group(1)] = {"file": rel, "line": n, "status": None, "sources": [], "must": False}
+                        cur = items[m.group(1)] = {"file": rel, "line": n, "status": None, "own": [], "sources": [], "priority": None}
             elif cur is not None:
                 if (m := ITEM_STATUS.match(line)) and cur["status"] is None:
-                    cur["status"] = m.group(1).upper()
+                    cur["status"], cur["own"] = m.group(1).upper(), re.findall(OWN, line)
                 elif m := ITEM_SOURCE.match(line):
                     cur["sources"] += re.findall(r"\b(?:FR|NFR)-\d+\b", m.group(1))
-                elif ITEM_MUST.match(line):
-                    cur["must"] = True
+                elif (m := ITEM_PRIORITY.match(line)) and cur["priority"] is None:
+                    cur["priority"] = m.group(1).lower()
     return items, dups
 
 
-def item_status(items, iid):
+def doc_statuses():
+    """{file: {file, line, status, own}} from the front matter of Vision and Brief; a missing file sets no ceiling."""
+    docs = {}
+    for name in DOCS:
+        f = PRODUCT / name
+        if not f.exists():
+            continue
+        lines = f.read_text(encoding="utf-8-sig").splitlines()
+        end = lines.index("---", 1) if lines[:1] == ["---"] and "---" in lines[1:] else 0
+        n, line = next(((n, l) for n, l in enumerate(lines[1:end], 2) if re.match(r"status[ \t]*:", l)), (1, ""))
+        m = re.match(r"status[ \t]*:[ \t]*['\"]?([^\s'\"#]+)", line)
+        docs[name] = {"file": f"docs/product/{name}", "line": n, "status": m.group(1).upper() if m else None, "own": re.findall(OWN, line)}
+    return docs
+
+
+def item_status(items, iid, docs):
+    """(status, where) deciding whether an item is implementable: its own (FR, NFR, ADR) or the worst of its FR / NFR
+    sources (AC), never better than Vision and Brief (weakest link). An invalid status wins and is returned as is."""
     it = items[iid]
     if iid.split("-")[0] in STATUS_KINDS:
-        return it["status"]
-    own = [items[s]["status"] for s in it["sources"] if s in items]
-    if not own or any(s not in SPEC_STATUSES for s in own):
-        return None
-    return max(own, key=SPEC_STATUSES.index)
+        cands = [(it["status"], f"{it['file']}:{it['line']}")]
+    else:
+        cands = [(items[s]["status"], f"{items[s]['file']}:{items[s]['line']}") for s in it["sources"] if s in items]
+    if not cands:
+        return None, f"{it['file']}:{it['line']}"
+    cands += [(d["status"], f"{d['file']}:{d['line']}") for d in docs.values()]
+    invalid = [c for c in cands if c[0] not in SPEC_STATUSES]
+    return invalid[0] if invalid else max(cands, key=lambda c: SPEC_STATUSES.index(c[0]))
+
+
+def spec_status_problems(spec):
+    """Items named by a "Spec:" line that are missing or not implementable."""
+    if not spec or re.match(r"^(none|spike)\b", spec):
+        return []
+    items, _ = spec_items()
+    docs, bad, text = doc_statuses(), [], None
+    for i in re.findall(SPEC_REF, spec):
+        if i in items and (i.split("-")[0] in STATUS_KINDS or i.startswith("AC-")):
+            st, where = item_status(items, i, docs)
+            if st not in IMPLEMENTABLE:
+                bad.append(f"Spec {i} is {st if st in SPEC_STATUSES else 'without a valid status'} ({where}), needs PROPOSED or APPROVED")
+        elif i not in items:
+            text = text if text is not None else "\n".join(f.read_text(encoding="utf-8-sig") for f in spec_files())
+            if i.split("-")[0] in STATUS_KINDS + ("AC",) or not re.search(rf"\b{re.escape(i)}\b", text):
+                bad.append(f"Spec {i} not found in docs/product/")
+    return bad
 
 
 def spec_problems(t):
@@ -290,21 +332,15 @@ def spec_problems(t):
         if not re.match(r"^(none|spike)[ \t]*-[ \t]*[^<\s]", spec):
             bad.append(f'Spec "{spec}": write "{m.group(1)} - <reason or Q-ID>"')
         return bad
-    ids = re.findall(SPEC_REF, spec)
-    if not ids:
+    if not re.findall(SPEC_REF, spec):
         return bad + [f'Spec "{spec}": no item IDs (FR-012, AC-012, ADR-006)']
-    items, _ = spec_items()
-    text = None
-    for i in ids:
-        if i in items and (i.split("-")[0] in STATUS_KINDS or i.startswith("AC-")):
-            st = item_status(items, i)
-            if st not in IMPLEMENTABLE:
-                bad.append(f"Spec {i} is {st or 'without a valid status'} ({items[i]['file']}:{items[i]['line']}), needs PROPOSED or APPROVED")
-        elif i not in items:
-            text = text if text is not None else "\n".join(f.read_text(encoding="utf-8-sig") for f in spec_files())
-            if i.split("-")[0] in STATUS_KINDS + ("AC",) or not re.search(rf"\b{re.escape(i)}\b", text):
-                bad.append(f"Spec {i} not found in docs/product/")
-    return bad
+    return bad + spec_status_problems(spec)
+
+
+def owner_done():
+    """IDs of owner tasks marked done ("- [x] **OWN-012 · ...") in state/owner-tasks.md."""
+    f = ROOT / "state" / "owner-tasks.md"
+    return set(re.findall(rf"(?m)^[ \t]*[-*][ \t]+\[[xX]\][^\n]*?({OWN})", f.read_text(encoding="utf-8-sig"))) if f.exists() else set()
 
 
 def spec_lint():
@@ -312,17 +348,33 @@ def spec_lint():
         print("spec: no docs/product/00_INDEX.md, Product definition is not active")
         return True
     items, bad = spec_items()
+    docs, done = doc_statuses(), owner_done()
+    bad += [f"{d['file']}:{d['line']}: front matter status '{d['status'] or ''}', expected {' | '.join(SPEC_STATUSES)}"
+            for d in docs.values() if d["status"] not in SPEC_STATUSES]
+    ceiling = [d for d in docs.values() if d["status"] not in IMPLEMENTABLE]
     for iid, it in items.items():
-        at = f"{it['file']}:{it['line']}"
-        if iid.split("-")[0] in STATUS_KINDS and it["status"] not in SPEC_STATUSES:
+        at, kind = f"{it['file']}:{it['line']}", iid.split("-")[0]
+        if kind in STATUS_KINDS and it["status"] not in SPEC_STATUSES:
             bad.append(f"{iid} ({at}): status '{it['status'] or ''}', expected {' | '.join(SPEC_STATUSES)}")
+        if kind in STATUS_KINDS and it["status"] in IMPLEMENTABLE:
+            bad += [f"{iid} ({at}) is {it['status']}, but {d['file']} is {d['status'] or 'without a status'}: "
+                    "an item is never ahead of Vision and Brief" for d in ceiling]
+        if kind in ("FR", "NFR") and it["status"] != "SUPERSEDED" and it["priority"] not in PRIORITIES:
+            bad.append(f"{iid} ({at}): priority '{it['priority'] or ''}', expected Must | Should | Could | Won't | Later")
         if iid.startswith("AC-") and not [s for s in it["sources"] if s in items]:
             bad.append(f"{iid} ({at}): Source names no FR / NFR of docs/product/")
+    for key, it in list(items.items()) + list(docs.items()):
+        if it["status"] == "APPROVED":
+            at = f"{it['file']}:{it['line']}"
+            if not it["own"]:
+                bad.append(f"{key} ({at}): APPROVED needs the owner task that approved it: APPROVED (OWN-###)")
+            bad += [f"{key} ({at}): APPROVED by {o}, which is not done ([x]) in state/owner-tasks.md" for o in it["own"] if o not in done]
     covered = {s for i, it in items.items() if i.startswith("AC-") for s in it["sources"]}
     bad += [f"{i} ({it['file']}:{it['line']}): Must without an AC (no AC has Source: {i})" for i, it in items.items()
-            if i.startswith("FR-") and it["must"] and it["status"] != "SUPERSEDED" and i not in covered]
+            if i.startswith("FR-") and it["priority"] == "must" and it["status"] != "SUPERSEDED" and i not in covered]
     count = {s: sum(1 for i, it in items.items() if i.split("-")[0] in STATUS_KINDS and it["status"] == s) for s in SPEC_STATUSES}
-    print(f"spec: {'PASS' if not bad else 'FAIL'} ({len(items)} items; " + ", ".join(f"{s} {n}" for s, n in count.items()) + ")")
+    print(f"spec: {'PASS' if not bad else 'FAIL'} ({len(items)} items; " + ", ".join(f"{s} {n}" for s, n in count.items())
+          + "".join(f"; {n} {d['status']}" for n, d in docs.items()) + ")")
     for b in bad:
         print(f"  - {b}")
     return not bad
